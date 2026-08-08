@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="512" height="512">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2a2d34"></stop>
+      <stop offset="70%" stop-color="#17181c"></stop>
+    </linearGradient>
+    <linearGradient id="g" x1="8.8" y1="8.8" x2="15.2" y2="16" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ffb27d"></stop>
+      <stop offset="100%" stop-color="#e2714a"></stop>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="24" height="24" rx="5.5" fill="url(#tile)"></rect>
+  <rect x="0.5" y="0.5" width="23" height="23" rx="5" fill="none" stroke="#ffffff" stroke-opacity="0.06"></rect>
+  <path d="M8.6 7.6 L5.6 12 L8.6 16.4" fill="none" stroke="#e2714a" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" opacity="0.22"></path>
+  <path d="M15.4 7.6 L18.4 12 L15.4 16.4" fill="none" stroke="#e2714a" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" opacity="0.22"></path>
+  <path d="M7.3 6.3 L3.8 12 L7.3 17.7" fill="none" stroke="#e2714a" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"></path>
+  <path d="M16.7 6.3 L20.2 12 L16.7 17.7" fill="none" stroke="#e2714a" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"></path>
+  <path d="M8.8 16 L8.8 8.8 L12 12.4 L15.2 8.8 L15.2 16" fill="none" stroke="url(#g)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>

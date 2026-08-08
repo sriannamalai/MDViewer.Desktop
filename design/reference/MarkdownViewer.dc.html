@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;450;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  html, body { margin:0; padding:0; }
+  body { background:#0e0f11; font-family:'IBM Plex Sans', system-ui, sans-serif; -webkit-font-smoothing:antialiased; }
+  * { box-sizing:border-box; }
+  a { color:var(--accent); text-decoration:none; }
+  a:hover { color:var(--accent); text-decoration:underline; }
+  ::-webkit-scrollbar { width:10px; height:10px; }
+  ::-webkit-scrollbar-thumb { background:var(--line); border-radius:6px; border:3px solid transparent; background-clip:content-box; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  :root, [data-theme="light"] {
+    --bg:#f7f6f3; --panel:#ffffff; --panel2:#f1efeb; --line:#e3dfd8; --line2:#eeebe5;
+    --text:#1b1b1e; --text2:#6c6960; --text3:#96928a;
+    --accent:#c1502e; --accentSoft:rgba(193,80,46,.10); --accentLine:rgba(193,80,46,.35);
+    --code:#f4f2ee; --desk:#0e0f11; --shadow:0 40px 90px rgba(0,0,0,.55);
+    --syn-kw:#9b2c6f; --syn-str:#2f7a4f; --syn-com:#9a958c; --syn-fn:#2f6bbf; --syn-num:#a35a09;
+    --ok:#2f7a4f; --note:#2f6bbf; --noteSoft:rgba(47,107,191,.09);
+  }
+  [data-theme="dark"] {
+    --bg:#131418; --panel:#1a1c21; --panel2:#212429; --line:#2c3037; --line2:#23262b;
+    --text:#e9e7e2; --text2:#9b988f; --text3:#75726b;
+    --accent:#e97a52; --accentSoft:rgba(233,122,82,.13); --accentLine:rgba(233,122,82,.4);
+    --code:#1e2126; --desk:#0a0b0c; --shadow:0 40px 90px rgba(0,0,0,.7);
+    --syn-kw:#e08bc0; --syn-str:#86d5a1; --syn-com:#6e6b65; --syn-fn:#83b4f0; --syn-num:#e0a45e;
+    --ok:#86d5a1; --note:#83b4f0; --noteSoft:rgba(131,180,240,.10);
+  }
+  @keyframes mdFade { from { opacity:0; transform:translateY(6px) scale(.985); } to { opacity:1; transform:none; } }
+  @keyframes mdVeil { from { opacity:0; } to { opacity:1; } }
+</style>
+</helmet>
+
+<div data-theme="{{ theme }}" style="min-height:100vh; background:var(--desk); display:flex; align-items:center; justify-content:flex-start; overflow-x:auto; padding:40px; font-family:'IBM Plex Sans', system-ui, sans-serif; color:var(--text);">
+<div style="flex:1 1 auto; margin:auto; width:100%; min-width:1180px; max-width:1440px; height:max(680px, min(900px, calc(100vh - 80px))); background:var(--bg); border-radius:12px; overflow:hidden; box-shadow:var(--shadow); border:1px solid var(--line); display:flex; flex-direction:column; position:relative;">
+
+  <!-- TITLEBAR — identical on every OS -->
+  <div style="height:44px; flex:none; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:16px; padding:0 12px 0 14px; background:var(--panel); border-bottom:1px solid var(--line);">
+    <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+      <div style="width:22px; height:22px; border-radius:6px; background:linear-gradient(150deg, #2a2d34 0%, #17181c 70%); box-shadow:inset 0 0 0 1px rgba(255,255,255,.06); display:flex; align-items:center; justify-content:center; flex:none;">
+        <svg viewBox="0 0 24 24" style="width:22px; height:22px; display:block;">
+          <path d="M8.6 7.6 L5.6 12 L8.6 16.4" fill="none" stroke="#e2714a" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" opacity="0.22"></path>
+          <path d="M15.4 7.6 L18.4 12 L15.4 16.4" fill="none" stroke="#e2714a" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" opacity="0.22"></path>
+          <path d="M7.3 6.3 L3.8 12 L7.3 17.7" fill="none" stroke="#e2714a" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"></path>
+          <path d="M16.7 6.3 L20.2 12 L16.7 17.7" fill="none" stroke="#e2714a" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" opacity="0.45"></path>
+          <path d="M8.8 16 L8.8 8.8 L12 12.4 L15.2 8.8 L15.2 16" fill="none" stroke="url(#mdvTitleG)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path>
+          <defs>
+            <linearGradient id="mdvTitleG" x1="8.8" y1="8.8" x2="15.2" y2="16" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#ffb27d"></stop>
+              <stop offset="100%" stop-color="#e2714a"></stop>
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+      <span style="font-size:12.5px; font-weight:600; letter-spacing:-.1px; color:var(--text);">MarkDown<span style="color:var(--text3); font-weight:500;">Viewer</span></span>
+      <span style="font-size:11.5px; color:var(--text3); font-family:'JetBrains Mono', monospace;">{{ platformLabel }}</span>
+    </div>
+
+    <div onClick="{{ openPalette }}" style="width:420px; height:28px; border-radius:7px; background:var(--panel2); border:1px solid var(--line); display:flex; align-items:center; gap:8px; padding:0 10px; cursor:pointer;" style-hover="border-color:var(--accentLine);">
+      <span style="font-size:12px; color:var(--text3);">⌕</span>
+      <span style="font-size:12px; color:var(--text3); flex:1;">Search files and headings</span>
+      <span style="font-family:'JetBrains Mono', monospace; font-size:10.5px; color:var(--text3); border:1px solid var(--line); border-radius:4px; padding:1px 5px;">⌘K</span>
+    </div>
+
+    <div style="display:flex; align-items:center; justify-content:flex-end; gap:4px;">
+      <div onClick="{{ toggleLayout }}" title="Toggle layout" style="height:26px; display:flex; align-items:center; gap:6px; padding:0 9px; border-radius:6px; cursor:pointer; color:var(--text2); font-size:11.5px; font-weight:500;" style-hover="background:var(--panel2); color:var(--text);">
+        <span style="font-family:'JetBrains Mono', monospace; font-size:12px;">{{ layoutGlyph }}</span>
+        <span>{{ layoutLabel }}</span>
+      </div>
+      <div onClick="{{ toggleTheme }}" title="Toggle theme" style="width:26px; height:26px; display:flex; align-items:center; justify-content:center; border-radius:6px; cursor:pointer; color:var(--text2); font-size:12.5px;" style-hover="background:var(--panel2); color:var(--text);">{{ themeGlyph }}</div>
+      <div onClick="{{ openSettings }}" title="Settings" style="width:26px; height:26px; display:flex; align-items:center; justify-content:center; border-radius:6px; cursor:pointer; color:var(--text2); font-size:13px;" style-hover="background:var(--panel2); color:var(--text);">⚙</div>
+      <div style="width:1px; height:16px; background:var(--line); margin:0 6px;"></div>
+      <div style="display:flex; gap:2px;">
+        <div style="width:26px; height:26px; display:flex; align-items:center; justify-content:center; border-radius:6px; cursor:pointer; color:var(--text2);" style-hover="background:var(--panel2); color:var(--text);"><div style="width:9px; height:1.5px; background:currentColor;"></div></div>
+        <div style="width:26px; height:26px; display:flex; align-items:center; justify-content:center; border-radius:6px; cursor:pointer; color:var(--text2);" style-hover="background:var(--panel2); color:var(--text);"><div style="width:8px; height:8px; border:1.5px solid currentColor; border-radius:2px;"></div></div>
+        <div style="width:26px; height:26px; display:flex; align-items:center; justify-content:center; border-radius:6px; cursor:pointer; color:var(--text2); font-size:13px;" style-hover="background:#c1502e; color:#fff;">✕</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BODY -->
+  <div style="flex:1; display:flex; min-height:0;">
+
+    <!-- ACTIVITY RAIL -->
+    <div style="width:48px; flex:none; background:var(--panel); border-right:1px solid var(--line); display:flex; flex-direction:column; align-items:center; padding:8px 0; gap:2px;">
+      <div onClick="{{ showFiles }}" title="Files" style="width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:15px; {{ railFiles }}" style-hover="background:var(--panel2);">▤</div>
+      <div onClick="{{ showSearch }}" title="Search" style="width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:15px; {{ railSearch }}" style-hover="background:var(--panel2);">⌕</div>
+      <div onClick="{{ showOutlinePanel }}" title="Outline" style="width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:15px; {{ railOutline }}" style-hover="background:var(--panel2);">☰</div>
+      <div style="flex:1;"></div>
+      <div onClick="{{ openExport }}" title="Export" style="width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:15px; color:var(--text3);" style-hover="background:var(--panel2); color:var(--text);">⇪</div>
+      <div onClick="{{ openWelcome }}" title="Home" style="width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:15px; color:var(--text3);" style-hover="background:var(--panel2); color:var(--text);">⌂</div>
+    </div>
+
+    <!-- SIDEBAR -->
+    <div style="flex:none; background:var(--panel); border-right:1px solid var(--line); overflow:hidden; display:flex; flex-direction:column; {{ sidebarStyle }}">
+      <div style="display:flex; flex-direction:column; height:100%; {{ sidebarInner }}">
+        <div style="height:38px; flex:none; display:flex; align-items:center; justify-content:space-between; gap:8px; padding:0 8px 0 16px; border-bottom:1px solid var(--line2);">
+          <span style="font-size:10.5px; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:var(--text3); white-space:nowrap;">{{ sidebarTitle }}</span>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span style="font-size:11px; color:var(--text3); font-family:'JetBrains Mono', monospace; white-space:nowrap;">{{ sidebarMeta }}</span>
+            <div onClick="{{ collapseSidebar }}" title="Collapse panel" style="width:22px; height:22px; display:flex; align-items:center; justify-content:center; border-radius:5px; cursor:pointer; color:var(--text3); font-size:11px;" style-hover="background:var(--panel2); color:var(--text);">⇤</div>
+          </div>
+        </div>
+
+        <sc-if value="{{ isFiles }}" hint-placeholder-val="{{ true }}">
+          <div style="flex:1; overflow-y:auto; padding:8px 8px 16px;">
+            <div style="display:flex; align-items:center; gap:6px; padding:5px 8px; border-radius:6px; cursor:pointer; font-size:12.5px; color:var(--text2);" style-hover="background:var(--panel2);">
+              <span style="font-size:9px; color:var(--text3); width:10px;">▾</span><span style="opacity:.8;">📁</span><span style="font-weight:500; color:var(--text);">MarkDownViewer</span>
+            </div>
+            <div style="padding-left:14px; display:flex; flex-direction:column; gap:1px; margin-top:1px;">
+              <div style="display:flex; align-items:center; gap:6px; padding:5px 8px; border-radius:6px; cursor:pointer; font-size:12.5px; color:var(--text2);" style-hover="background:var(--panel2);">
+                <span style="font-size:9px; color:var(--text3); width:10px;">▾</span><span style="opacity:.8;">📁</span><span>docs</span>
+              </div>
+              <div style="padding-left:14px; display:flex; flex-direction:column; gap:1px;">
+                <div onClick="{{ openDesign }}" style="display:flex; align-items:center; gap:8px; padding:5px 8px; border-radius:6px; cursor:pointer; font-size:12.5px; {{ fileDesign }}" style-hover="background:var(--panel2);">
+                  <span style="font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--accent); width:10px;">M</span><span>Design.md</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px; padding:5px 8px; border-radius:6px; cursor:pointer; font-size:12.5px; color:var(--text2);" style-hover="background:var(--panel2);">
+                  <span style="font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--accent); width:10px;">M</span><span>Benchmarks.md</span>
+                </div>
+              </div>
+              <div style="display:flex; align-items:center; gap:6px; padding:5px 8px; border-radius:6px; cursor:pointer; font-size:12.5px; color:var(--text2);" style-hover="background:var(--panel2);">
+                <span style="font-size:9px; color:var(--text3); width:10px;">▸</span><span style="opacity:.8;">📁</span><span>third_party</span>
+              </div>
+              <div onClick="{{ openReadme }}" style="display:flex; align-items:center; gap:8px; padding:5px 8px; border-radius:6px; cursor:pointer; font-size:12.5px; {{ fileReadme }}" style-hover="background:var(--panel2);">
+                <span style="font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--accent); width:10px;">M</span><span>README.md</span>
+              </div>
+              <div onClick="{{ openChangelog }}" style="display:flex; align-items:center; gap:8px; padding:5px 8px; border-radius:6px; cursor:pointer; font-size:12.5px; {{ fileChangelog }}" style-hover="background:var(--panel2);">
+                <span style="font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--accent); width:10px;">M</span><span>CHANGELOG.md</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:8px; padding:5px 8px; border-radius:6px; cursor:pointer; font-size:12.5px; color:var(--text2);" style-hover="background:var(--panel2);">
+                <span style="font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--accent); width:10px;">M</span><span>SECURITY.md</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:8px; padding:5px 8px; border-radius:6px; cursor:pointer; font-size:12.5px; color:var(--text3);" style-hover="background:var(--panel2);">
+                <span style="font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--text3); width:10px;">T</span><span>NOTICE</span>
+              </div>
+            </div>
+            <div style="margin:16px 8px 8px; padding-top:14px; border-top:1px solid var(--line2);">
+              <div style="font-size:10.5px; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:var(--text3); margin-bottom:8px;">Recent</div>
+              <div style="display:flex; flex-direction:column; gap:2px;">
+                <div style="display:flex; align-items:baseline; justify-content:space-between; padding:4px 0; font-size:12.5px; color:var(--text2); cursor:pointer;" style-hover="color:var(--text);"><span>notes/2026-08-04.md</span><span style="font-size:10.5px; color:var(--text3); font-family:'JetBrains Mono', monospace;">2h</span></div>
+                <div style="display:flex; align-items:baseline; justify-content:space-between; padding:4px 0; font-size:12.5px; color:var(--text2); cursor:pointer;" style-hover="color:var(--text);"><span>rfc/document-model.md</span><span style="font-size:10.5px; color:var(--text3); font-family:'JetBrains Mono', monospace;">1d</span></div>
+                <div style="display:flex; align-items:baseline; justify-content:space-between; padding:4px 0; font-size:12.5px; color:var(--text2); cursor:pointer;" style-hover="color:var(--text);"><span>vault/reading-list.md</span><span style="font-size:10.5px; color:var(--text3); font-family:'JetBrains Mono', monospace;">3d</span></div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isSearch }}" hint-placeholder-val="{{ false }}">
+          <div style="flex:1; overflow-y:auto; display:flex; flex-direction:column;">
+            <div style="padding:10px 12px; border-bottom:1px solid var(--line2);">
+              <div style="height:30px; border-radius:7px; background:var(--panel2); border:1px solid var(--accentLine); display:flex; align-items:center; gap:8px; padding:0 10px;">
+                <span style="font-size:12px; color:var(--text3);">⌕</span>
+                <span style="font-size:12.5px; color:var(--text); font-family:'JetBrains Mono', monospace;">resolver</span>
+                <span style="width:1px; height:14px; background:var(--accent); display:inline-block;"></span>
+              </div>
+              <div style="display:flex; gap:6px; margin-top:8px;">
+                <span style="font-size:10.5px; padding:2px 7px; border-radius:20px; background:var(--accentSoft); color:var(--accent); font-weight:500;">Aa</span>
+                <span style="font-size:10.5px; padding:2px 7px; border-radius:20px; border:1px solid var(--line); color:var(--text3);">.*</span>
+                <span style="font-size:10.5px; padding:2px 7px; border-radius:20px; border:1px solid var(--line); color:var(--text3);">Whole word</span>
+              </div>
+            </div>
+            <div style="padding:10px 6px 16px;">
+              <div style="font-size:11px; color:var(--text3); padding:0 10px 8px;">7 results in 3 files</div>
+              <div style="display:flex; flex-direction:column; gap:2px;">
+                <div style="padding:6px 10px; border-radius:7px; background:var(--accentSoft); cursor:pointer;">
+                  <div style="display:flex; justify-content:space-between; font-size:11.5px; color:var(--text2); margin-bottom:3px;"><span style="font-weight:500; color:var(--text);">README.md</span><span style="font-family:'JetBrains Mono', monospace; color:var(--text3);">L104</span></div>
+                  <div style="font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--text2); line-height:1.5;">Hosts that need to resolve relative paths can supply a <span style="background:var(--accentSoft); color:var(--accent); border-radius:2px;">Resolver</span></div>
+                </div>
+                <div style="padding:6px 10px; border-radius:7px; cursor:pointer;" style-hover="background:var(--panel2);">
+                  <div style="display:flex; justify-content:space-between; font-size:11.5px; color:var(--text2); margin-bottom:3px;"><span style="font-weight:500; color:var(--text);">README.md</span><span style="font-family:'JetBrains Mono', monospace; color:var(--text3);">L118</span></div>
+                  <div style="font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--text2); line-height:1.5;">URLs a <span style="background:var(--accentSoft); color:var(--accent); border-radius:2px;">Resolver</span> returns with ok=true are emitted as-is</div>
+                </div>
+                <div style="padding:6px 10px; border-radius:7px; cursor:pointer;" style-hover="background:var(--panel2);">
+                  <div style="display:flex; justify-content:space-between; font-size:11.5px; color:var(--text2); margin-bottom:3px;"><span style="font-weight:500; color:var(--text);">docs/Design.md</span><span style="font-family:'JetBrains Mono', monospace; color:var(--text3);">L52</span></div>
+                  <div style="font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--text2); line-height:1.5;">The <span style="background:var(--accentSoft); color:var(--accent); border-radius:2px;">resolver</span> is the only host hook in the render path</div>
+                </div>
+                <div style="padding:6px 10px; border-radius:7px; cursor:pointer;" style-hover="background:var(--panel2);">
+                  <div style="display:flex; justify-content:space-between; font-size:11.5px; color:var(--text2); margin-bottom:3px;"><span style="font-weight:500; color:var(--text);">SECURITY.md</span><span style="font-family:'JetBrains Mono', monospace; color:var(--text3);">L31</span></div>
+                  <div style="font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--text2); line-height:1.5;">Bypasses of the <span style="background:var(--accentSoft); color:var(--accent); border-radius:2px;">resolver</span> trust boundary are in scope</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isOutlinePanel }}" hint-placeholder-val="{{ false }}">
+          <div style="flex:1; overflow-y:auto; padding:12px 10px 16px;">
+            <div style="font-size:11px; color:var(--text3); padding:0 8px 10px;">{{ docTitle }}</div>
+            <div style="display:flex; flex-direction:column; gap:1px;">{{ outlineTree }}</div>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+
+    <!-- LEFT RESIZE HANDLE -->
+    <div onMouseDown="{{ startSidebarDrag }}" onDoubleClick="{{ resetSidebar }}" title="Drag to resize · double-click to reset" style="flex:none; width:5px; margin-left:-3px; margin-right:-2px; z-index:5; cursor:col-resize; display:flex; justify-content:center; {{ leftHandle }}">
+      <div style="width:1px; height:100%; background:transparent; transition:background .12s; {{ leftHandleBar }}" style-hover="background:var(--accent); width:2px;"></div>
+    </div>
+
+    <!-- MAIN COLUMN -->
+    <div style="flex:1; min-width:0; display:flex; flex-direction:column; background:var(--bg);">
+
+      <!-- TAB STRIP -->
+      <div style="height:38px; flex:none; display:flex; align-items:stretch; background:var(--panel); border-bottom:1px solid var(--line);">
+        <div onClick="{{ openReadme }}" style="display:flex; align-items:center; gap:9px; padding:0 14px; cursor:pointer; font-size:12.5px; border-right:1px solid var(--line); min-width:150px; {{ tabReadme }}">
+          <span style="font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--accent);">M</span>
+          <span style="flex:1;">README.md</span>
+          <span style="font-size:12px; color:var(--text3); opacity:.7;">✕</span>
+        </div>
+        <div onClick="{{ openDesign }}" style="display:flex; align-items:center; gap:9px; padding:0 14px; cursor:pointer; font-size:12.5px; border-right:1px solid var(--line); min-width:150px; {{ tabDesign }}">
+          <span style="font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--accent);">M</span>
+          <span style="flex:1;">Design.md</span>
+          <span style="font-size:12px; color:var(--text3); opacity:.7;">✕</span>
+        </div>
+        <div onClick="{{ openChangelog }}" style="display:flex; align-items:center; gap:9px; padding:0 14px; cursor:pointer; font-size:12.5px; border-right:1px solid var(--line); min-width:150px; {{ tabChangelog }}">
+          <span style="font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--accent);">M</span>
+          <span style="flex:1;">CHANGELOG.md</span>
+          <span style="font-size:12px; color:var(--text3); opacity:.7;">✕</span>
+        </div>
+        <div style="display:flex; align-items:center; justify-content:center; width:34px; color:var(--text3); font-size:15px; cursor:pointer;" style-hover="color:var(--text);">+</div>
+        <div style="flex:1;"></div>
+      </div>
+
+      <!-- DOC TOOLBAR -->
+      <div style="height:36px; flex:none; display:flex; align-items:center; gap:10px; padding:0 20px; border-bottom:1px solid var(--line2); background:var(--bg);">
+        <span style="font-size:11.5px; color:var(--text3); font-family:'JetBrains Mono', monospace;">{{ breadcrumb }}</span>
+        <div style="flex:1;"></div>
+        <span style="font-size:11px; color:var(--text3);">{{ docStats }}</span>
+        <div style="width:1px; height:14px; background:var(--line);"></div>
+        <div onClick="{{ toggleOutline }}" title="Toggle outline panel" style="font-size:11.5px; color:var(--text2); cursor:pointer; padding:3px 8px; border-radius:5px; {{ outlineBtn }}" style-hover="background:var(--panel2); color:var(--text);">Outline</div>
+        <div onClick="{{ toggleSource }}" style="font-size:11.5px; color:var(--text2); cursor:pointer; padding:3px 8px; border-radius:5px; {{ sourceBtn }}" style-hover="background:var(--panel2); color:var(--text);">{{ sourceLabel }}</div>
+        <div onClick="{{ openExport }}" style="font-size:11.5px; color:var(--text2); cursor:pointer; padding:3px 8px; border-radius:5px;" style-hover="background:var(--panel2); color:var(--text);">Export</div>
+      </div>
+
+      <!-- DOC SCROLL AREA -->
+      <div style="flex:1; overflow-y:auto; position:relative;">
+        <div style="margin:0 auto; width:100%; padding:44px 10% 120px; max-width:100%; transition:padding .22s cubic-bezier(.2,.7,.3,1); {{ proseWidth }}">
+          {{ doc }}
+        </div>
+      </div>
+
+      <!-- STATUS BAR -->
+      <div style="height:26px; flex:none; display:flex; align-items:center; gap:14px; padding:0 14px; background:var(--panel); border-top:1px solid var(--line); font-size:11px; color:var(--text3); font-family:'JetBrains Mono', monospace;">
+        <span style="color:var(--ok);">● sanitized</span>
+        <span>CommonMark + GFM</span>
+        <span>KaTeX · mermaid embedded</span>
+        <div style="flex:1;"></div>
+        <span>{{ scrollLabel }}</span>
+        <span>UTF-8</span>
+        <span>LF</span>
+      </div>
+    </div>
+
+    <!-- RIGHT RESIZE HANDLE -->
+    <div onMouseDown="{{ startOutlineDrag }}" onDoubleClick="{{ resetOutline }}" title="Drag to resize · double-click to reset" style="flex:none; width:5px; margin-left:-2px; margin-right:-3px; z-index:5; cursor:col-resize; display:flex; justify-content:center; {{ rightHandle }}">
+      <div style="width:1px; height:100%; background:transparent; transition:background .12s; {{ rightHandleBar }}" style-hover="background:var(--accent); width:2px;"></div>
+    </div>
+
+    <!-- OUTLINE COLUMN -->
+    <div style="flex:none; border-left:1px solid var(--line); background:var(--bg); overflow-x:hidden; overflow-y:auto; {{ outlineColStyle }}">
+      <div style="padding:22px 20px 32px; {{ outlineInner }}">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:14px;">
+          <span style="font-size:10.5px; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:var(--text3); white-space:nowrap;">On this page</span>
+          <div onClick="{{ collapseOutline }}" title="Collapse outline" style="width:22px; height:22px; margin-right:-4px; display:flex; align-items:center; justify-content:center; border-radius:5px; cursor:pointer; color:var(--text3); font-size:11px;" style-hover="background:var(--panel2); color:var(--text);">⇥</div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:1px;">{{ outlineTree }}</div>
+        <div style="margin-top:26px; padding-top:16px; border-top:1px solid var(--line2); display:flex; flex-direction:column; gap:7px;">
+          <div style="display:flex; justify-content:space-between; font-size:11.5px;"><span style="color:var(--text3);">Words</span><span style="color:var(--text2); font-family:'JetBrains Mono', monospace;">{{ words }}</span></div>
+          <div style="display:flex; justify-content:space-between; font-size:11.5px;"><span style="color:var(--text3);">Read time</span><span style="color:var(--text2); font-family:'JetBrains Mono', monospace;">{{ readTime }}</span></div>
+          <div style="display:flex; justify-content:space-between; font-size:11.5px;"><span style="color:var(--text3);">Modified</span><span style="color:var(--text2); font-family:'JetBrains Mono', monospace;">Aug 6</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OVERLAYS -->
+  <sc-if value="{{ hasOverlay }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeOverlay }}" style="position:absolute; inset:0; background:rgba(10,11,12,.45); backdrop-filter:blur(2px); display:flex; align-items:flex-start; justify-content:center; animation:mdVeil .14s ease-out;">
+      {{ overlayBody }}
+    </div>
+  </sc-if>
+
+</div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1520,&quot;height&quot;:980}}">
+const e = React.createElement;
+
+const T = {
+  h1: { fontFamily: "'Source Serif 4', Georgia, serif", fontSize: '34px', fontWeight: 700, letterSpacing: '-.02em', lineHeight: 1.15, margin: '0 0 14px', color: 'var(--text)' },
+  h2: { fontFamily: "'Source Serif 4', Georgia, serif", fontSize: '22px', fontWeight: 600, letterSpacing: '-.01em', margin: '42px 0 12px', paddingBottom: '7px', borderBottom: '1px solid var(--line)', color: 'var(--text)' },
+  h3: { fontFamily: "'Source Serif 4', Georgia, serif", fontSize: '17px', fontWeight: 600, margin: '28px 0 8px', color: 'var(--text)' },
+  p: { fontSize: '14.5px', lineHeight: 1.72, color: 'var(--text)', margin: '0 0 14px', textWrap: 'pretty' },
+  li: { fontSize: '14.5px', lineHeight: 1.72, color: 'var(--text)', margin: '0 0 7px' },
+  code: { fontFamily: "'JetBrains Mono', monospace", fontSize: '12.5px', background: 'var(--code)', border: '1px solid var(--line2)', borderRadius: '4px', padding: '1px 5px' },
+  pre: { fontFamily: "'JetBrains Mono', monospace", fontSize: '12.5px', lineHeight: 1.65, background: 'var(--code)', border: '1px solid var(--line)', borderRadius: '8px', padding: '14px 16px', overflowX: 'auto', margin: '0 0 18px', whiteSpace: 'pre' },
+};
+
+const C = (s) => ({ color: `var(--syn-${s})` });
+
+function code(lang, lines) {
+  return e('div', { style: { margin: '0 0 18px', border: '1px solid var(--line)', borderRadius: '8px', overflow: 'hidden', background: 'var(--code)' } },
+    e('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', borderBottom: '1px solid var(--line2)' } },
+      e('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: '10.5px', letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--text3)' } }, lang),
+      e('span', { style: { fontSize: '11px', color: 'var(--text3)', cursor: 'pointer' } }, 'Copy')),
+    e('pre', { style: { ...T.pre, margin: 0, border: 'none', borderRadius: 0 } }, lines));
+}
+
+function P(props, ...kids) { return e('p', { ...props, style: T.p }, ...kids); }
+function ic(t) { return e('code', { style: T.code }, t); }
+function H2(id, t) { return e('h2', { id, style: T.h2 }, t); }
+function H3(id, t) { return e('h3', { id, style: T.h3 }, t); }
+
+function table(headers, rows) {
+  return e('div', { style: { border: '1px solid var(--line)', borderRadius: '8px', overflow: 'hidden', margin: '0 0 20px' } },
+    e('table', { style: { width: '100%', borderCollapse: 'collapse', fontSize: '13.5px' } },
+      e('thead', null, e('tr', { style: { background: 'var(--panel2)' } }, headers.map((h, i) =>
+        e('th', { key: i, style: { textAlign: 'left', padding: '9px 14px', fontSize: '11px', fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--text3)', borderBottom: '1px solid var(--line)' } }, h)))),
+      e('tbody', null, rows.map((r, i) =>
+        e('tr', { key: i, style: { borderTop: i ? '1px solid var(--line2)' : 'none' } },
+          r.map((c, j) => e('td', { key: j, style: { padding: '9px 14px', verticalAlign: 'top', color: j ? 'var(--text2)' : 'var(--text)', fontWeight: j ? 400 : 500, lineHeight: 1.55, whiteSpace: j ? 'normal' : 'nowrap' } }, c)))))));
+}
+
+function callout(kind, title, body) {
+  const c = kind === 'note' ? 'var(--note)' : 'var(--accent)';
+  const bg = kind === 'note' ? 'var(--noteSoft)' : 'var(--accentSoft)';
+  return e('div', { style: { display: 'flex', gap: '12px', padding: '13px 16px', borderRadius: '8px', background: bg, margin: '0 0 20px' } },
+    e('span', { style: { color: c, fontSize: '14px', lineHeight: '1.5' } }, kind === 'note' ? 'ⓘ' : '⚠'),
+    e('div', null,
+      e('div', { style: { fontSize: '12px', fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: c, marginBottom: '4px' } }, title),
+      e('div', { style: { fontSize: '14px', lineHeight: 1.65, color: 'var(--text)' } }, body)));
+}
+
+function bullets(items) {
+  return e('ul', { style: { margin: '0 0 18px', paddingLeft: '20px' } }, items.map((t, i) => e('li', { key: i, style: T.li }, t)));
+}
+
+const DOCS = {
+  readme: {
+    title: 'README.md',
+    path: 'MarkDownViewer / README.md',
+    stats: '207 lines · 7.82 KB',
+    words: '1,140',
+    read: '5 min',
+    outline: [
+      ['MarkDownViewer', 1], ['Status', 2], ['Features', 2], ['Install', 2], ['Quick start', 2],
+      ['Rewriting links and images', 3], ['CLI usage', 2], ['Concurrency', 2], ['Theming', 2],
+      ['Security model', 2], ['Roadmap', 2], ['License', 2],
+    ],
+    active: 'Features',
+    body: () => [
+      e('h1', { key: 'h1', style: T.h1 }, 'MarkDownViewer'),
+      e('div', { key: 'badges', style: { display: 'flex', gap: '6px', margin: '0 0 22px', flexWrap: 'wrap' } },
+        [['Go', '1.26+'], ['CommonMark', '652/652'], ['license', 'Apache-2.0'], ['release', 'v0.1.0']].map(([k, v], i) =>
+          e('span', { key: i, style: { display: 'flex', fontFamily: "'JetBrains Mono', monospace", fontSize: '10.5px', borderRadius: '4px', overflow: 'hidden', border: '1px solid var(--line)' } },
+            e('span', { style: { padding: '2px 7px', background: 'var(--panel2)', color: 'var(--text2)' } }, k),
+            e('span', { style: { padding: '2px 7px', background: 'var(--accent)', color: '#fff' } }, v)))),
+      P({ key: 'p1' }, 'A modern, embeddable Markdown viewer library for Go. Feed it Markdown, get back self-contained, themed, sanitized HTML — no CDN calls, no external assets, safe to render untrusted input by default. Built around a document model that sits between parsing and rendering, so the HTML renderer shipped today and native renderers planned for later both consume the same typed AST.'),
+      H2('status', 'Status'),
+      callout('warn', 'v0.x — the API is not yet frozen', ['The ', ic('document'), ' model is designed to become the stable contract for future renderers and bindings, but it hasn\u2019t earned that status yet: expect additive evolution — source positions on nodes, a JSON serialization — before a v1.0 that commits to compatibility.']),
+      P({ key: 'p2' }, 'See ', e('a', { href: '#' }, 'docs/Design.md'), ' for the architecture and roadmap, and ', e('a', { href: '#' }, 'CHANGELOG.md'), ' for release notes.'),
+      H2('features', 'Features'),
+      table(['Feature', 'Notes'], [
+        ['CommonMark + GFM', '652/652 official CommonMark spec examples verified, plus GFM extras (tables, strikethrough, task lists, autolinks)'],
+        ['Footnotes', ['', ic('[^1]'), '-style references and definitions']],
+        ['Heading anchors', ['Stable ', ic('id'), ' attributes for deep linking']],
+        ['Front-matter', 'YAML front-matter parsed as document metadata'],
+        ['Emoji', [ic(':shortcode:'), ' support']],
+        ['TeX math', 'Inline and block math via KaTeX, rendered offline'],
+        ['Mermaid diagrams', 'Flowcharts, sequence diagrams, etc., rendered offline'],
+        ['Syntax highlighting', 'chroma, pure Go, 250+ languages'],
+        ['Safe by default', 'HTML sanitized via bluemonday, URL scheme allowlist, opt-in escape hatch'],
+        ['Offline output', 'Every asset (KaTeX, mermaid, fonts) is embedded — zero external dependencies'],
+      ]),
+      H2('install', 'Install'),
+      code('shell', [e('span', { key: 1, style: C('fn') }, 'go get '), 'github.com/sriannamalai/markdownviewer']),
+      P({ key: 'p3' }, 'Requires Go 1.26+.'),
+      H2('quick-start', 'Quick start'),
+      code('go', [
+        e('span', { key: 1, style: C('kw') }, 'package'), ' main\n\n',
+        e('span', { key: 2, style: C('kw') }, 'import'), ' (\n\t', e('span', { key: 3, style: C('str') }, '"fmt"'), '\n\n\tmarkdownviewer ', e('span', { key: 4, style: C('str') }, '"github.com/sriannamalai/markdownviewer"'), '\n)\n\n',
+        e('span', { key: 5, style: C('kw') }, 'func'), ' ', e('span', { key: 6, style: C('fn') }, 'main'), '() {\n\thtml, err := markdownviewer.', e('span', { key: 7, style: C('fn') }, 'Render'), '([]', e('span', { key: 8, style: C('kw') }, 'byte'), '(', e('span', { key: 9, style: C('str') }, '"# Hi\\n"'), '))\n\t',
+        e('span', { key: 10, style: C('kw') }, 'if'), ' err != ', e('span', { key: 11, style: C('kw') }, 'nil'), ' {\n\t\t', e('span', { key: 12, style: C('fn') }, 'panic'), '(err)\n\t}\n\tfmt.', e('span', { key: 13, style: C('fn') }, 'Println'), '(', e('span', { key: 14, style: C('kw') }, 'string'), '(html))\n}',
+      ]),
+      P({ key: 'p4' }, 'Options compose as functional options on ', ic('Render'), ' / ', ic('RenderTo'), ':'),
+      code('go', [
+        'out, err := markdownviewer.', e('span', { key: 1, style: C('fn') }, 'Render'), '(\n\tsrc,\n\tmarkdownviewer.', e('span', { key: 2, style: C('fn') }, 'WithTheme'), '(', e('span', { key: 3, style: C('str') }, '"dark"'), '),\n\tmarkdownviewer.', e('span', { key: 4, style: C('fn') }, 'Fragment'), '(),        ',
+        e('span', { key: 5, style: C('com') }, '// body-only HTML'), '\n\tmarkdownviewer.', e('span', { key: 6, style: C('fn') }, 'AllowRawHTML'), '(),    ',
+        e('span', { key: 7, style: C('com') }, '// trust the input'), '\n\tmarkdownviewer.', e('span', { key: 8, style: C('fn') }, 'DisableMath'), '(),     ',
+        e('span', { key: 9, style: C('com') }, '// skip KaTeX'), '\n)',
+      ]),
+      H3('rewriting', 'Rewriting links and images'),
+      P({ key: 'p5' }, 'Hosts that need to resolve relative paths, rewrite ', ic('wiki-links'), ', or route images through an asset pipeline can supply a ', ic('Resolver'), '.'),
+      callout('note', 'Trust contract', ['URLs a ', ic('Resolver'), ' returns with ', ic('ok=true'), ' are emitted as-is, without scheme filtering. The library assumes hosts fully control resolution and will not echo untrusted targets back unexamined.']),
+      H2('cli', 'CLI usage'),
+      P({ key: 'p6' }, 'The ', ic('mdview'), ' command renders a file or stdin to HTML. Flags come before the positional file argument:'),
+      code('shell', [
+        e('span', { key: 1, style: C('fn') }, 'mdview'), ' -o out.html README.md          ', e('span', { key: 2, style: C('com') }, '# file to file'), '\n',
+        e('span', { key: 3, style: C('fn') }, 'mdview'), ' -theme dark README.md          ', e('span', { key: 4, style: C('com') }, '# force dark theme'), '\n',
+        e('span', { key: 5, style: C('fn') }, 'cat'), ' notes.md | mdview -fragment       ', e('span', { key: 6, style: C('com') }, '# stdin to stdout'), '\n',
+        e('span', { key: 7, style: C('fn') }, 'mdview'), ' -unsafe notes.md               ', e('span', { key: 8, style: C('com') }, '# trust the input'),
+      ]),
+      H2('security', 'Security model'),
+      bullets([
+        [e('strong', { key: 1 }, 'Sanitized by default.'), ' Raw HTML in Markdown input is passed through bluemonday\u2019s UGC policy unless ', ic('AllowRawHTML()'), ' is set.'],
+        [e('strong', { key: 1 }, 'URL scheme allowlist.'), ' Only ', ic('http'), ', ', ic('https'), ', ', ic('mailto'), ' and ', ic('tel'), ' are permitted; everything else is blocked.'],
+        [e('strong', { key: 1 }, 'Resolver trust boundary.'), ' A host-supplied resolver fully controls its own output.'],
+        [e('strong', { key: 1 }, 'Offline, self-contained output.'), ' Rendered HTML never fetches from a CDN.'],
+      ]),
+      H2('license', 'License'),
+      P({ key: 'p7' }, 'Apache-2.0 — see ', e('a', { href: '#' }, 'LICENSE'), '. This project bundles third-party software (goldmark, chroma, bluemonday, mermaid, KaTeX).'),
+    ],
+  },
+  design: {
+    title: 'Design.md',
+    path: 'MarkDownViewer / docs / Design.md',
+    stats: '318 lines · 12.4 KB',
+    words: '2,060',
+    read: '9 min',
+    outline: [['Architecture', 1], ['Pipeline', 2], ['The document model', 2], ['Layout metrics', 2], ['Roadmap', 2]],
+    active: 'Pipeline',
+    body: () => [
+      e('h1', { key: 'h1', style: T.h1 }, 'Architecture'),
+      P({ key: 'p1' }, 'Parsing and rendering are separated by a typed document model. Everything downstream — the HTML renderer today, native render trees later — consumes ', ic('document.Document'), ' and never touches parser internals.'),
+      H2('pipeline', 'Pipeline'),
+      e('div', { key: 'd', style: { border: '1px solid var(--line)', borderRadius: '8px', background: 'var(--code)', padding: '26px 20px', margin: '0 0 20px' } },
+        e('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' } },
+          ['Source', 'goldmark AST', 'document.Document', 'Renderer', 'Sanitizer', 'HTML'].map((n, i) => [
+            i ? e('span', { key: 'a' + i, style: { color: 'var(--text3)', fontSize: '13px' } }, '→') : null,
+            e('span', { key: 'n' + i, style: { fontFamily: "'JetBrains Mono', monospace", fontSize: '11.5px', padding: '6px 11px', borderRadius: '6px', border: '1px solid var(--line)', background: 'var(--panel)', color: i === 2 ? 'var(--accent)' : 'var(--text2)', borderColor: i === 2 ? 'var(--accentLine)' : 'var(--line)' } }, n),
+          ])),
+        e('div', { style: { textAlign: 'center', fontSize: '11px', color: 'var(--text3)', marginTop: '16px', fontFamily: "'JetBrains Mono', monospace" } }, 'mermaid · rendered offline')),
+      H2('model', 'The document model'),
+      P({ key: 'p2' }, 'Nodes are value types with an explicit kind tag. Source positions land in v0.3; a JSON serialization follows so non-Go hosts can consume the tree without an FFI boundary.'),
+      code('go', [
+        e('span', { key: 1, style: C('kw') }, 'type'), ' Node ', e('span', { key: 2, style: C('kw') }, 'struct'), ' {\n\tKind     Kind\n\tChildren []Node\n\tAttrs    ', e('span', { key: 3, style: C('kw') }, 'map'), '[', e('span', { key: 4, style: C('kw') }, 'string'), ']', e('span', { key: 5, style: C('kw') }, 'string'), '\n\tText     ', e('span', { key: 6, style: C('kw') }, 'string'), '\n}',
+      ]),
+      H2('metrics', 'Layout metrics'),
+      P({ key: 'p3' }, 'Line-breaking cost is minimised over the paragraph, in the Knuth–Plass sense:'),
+      e('div', { key: 'm', style: { border: '1px solid var(--line)', borderRadius: '8px', background: 'var(--code)', padding: '20px', margin: '0 0 20px', textAlign: 'center', fontFamily: "'Source Serif 4', Georgia, serif", fontSize: '19px', fontStyle: 'italic', color: 'var(--text)' } },
+        'β = Σ', e('sub', { style: { fontSize: '12px' } }, 'i=1'), '\u00A0(r', e('sub', { style: { fontSize: '12px' } }, 'i'), ')³ + π', e('sub', { style: { fontSize: '12px' } }, 'i'),
+        e('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: '10.5px', fontStyle: 'normal', color: 'var(--text3)', marginTop: '12px' } }, 'KaTeX · rendered offline')),
+      table(['Stage', 'Median', 'p99'], [['Parse', '1.2 ms', '4.8 ms'], ['Render', '0.9 ms', '3.1 ms'], ['Sanitize', '0.4 ms', '1.6 ms']]),
+      H2('roadmap-d', 'Roadmap'),
+      bullets(['Source positions on nodes', 'JSON serialization of the document tree', 'Exported asset bundle for fragment hosts', 'C-shared FFI + WASM builds', 'Native render-tree renderer']),
+    ],
+  },
+  changelog: {
+    title: 'CHANGELOG.md',
+    path: 'MarkDownViewer / CHANGELOG.md',
+    stats: '86 lines · 2.1 KB',
+    words: '340',
+    read: '2 min',
+    outline: [['Changelog', 1], ['0.1.0 — 2026-08-04', 2], ['0.0.3 — 2026-07-12', 2]],
+    active: '0.1.0 — 2026-08-04',
+    body: () => [
+      e('h1', { key: 'h1', style: T.h1 }, 'Changelog'),
+      P({ key: 'p1' }, 'All notable changes to this project are documented here. The format follows Keep a Changelog, and this project adheres to Semantic Versioning.'),
+      H2('v010', '0.1.0 — 2026-08-04'),
+      H3('added', 'Added'),
+      bullets([
+        ['Public ', ic('Render'), ' / ', ic('RenderTo'), ' / ', ic('Parse'), ' API with functional options.'],
+        [ic('mdview'), ' CLI with ', ic('-theme'), ', ', ic('-fragment'), ', ', ic('-unsafe'), ' flags.'],
+        'Admonitions, wiki-links, definition lists, footnotes.',
+        'Offline KaTeX and mermaid bundles embedded in full-page output.',
+      ]),
+      H3('changed', 'Changed'),
+      bullets([['Themes are now CSS custom-property sets over one base stylesheet.'], ['Sanitizer policy tightened: ', ic('data:'), ' URLs blocked by default.']]),
+      H2('v003', '0.0.3 — 2026-07-12'),
+      bullets(['Initial goldmark integration.', 'chroma syntax highlighting, 250+ lexers.']),
+    ],
+  },
+};
+
+class Component extends DCLogic {
+  state = {
+    theme: 'light', layout: 'workbench', doc: 'readme', panel: 'files', overlay: null, source: false,
+    sidebarOpen: true, outlineOpen: true, sidebarW: 268, outlineW: 236, dragging: null,
+  };
+
+  SB = { min: 190, max: 460, def: 268 };
+  OL = { min: 180, max: 400, def: 236 };
+
+  startDrag(which, ev) {
+    ev.preventDefault();
+    const startX = ev.clientX;
+    const isLeft = which === 'left';
+    const cfg = isLeft ? this.SB : this.OL;
+    const startW = isLeft ? this.state.sidebarW : this.state.outlineW;
+    if (isLeft && !this.state.sidebarOpen) this.setState({ sidebarOpen: true });
+    if (!isLeft && !this.state.outlineOpen) this.setState({ outlineOpen: true });
+    this.setState({ dragging: which });
+
+    const move = (e2) => {
+      const delta = isLeft ? e2.clientX - startX : startX - e2.clientX;
+      const raw = startW + delta;
+      if (raw < cfg.min - 46) {
+        this.setState(isLeft ? { sidebarOpen: false } : { outlineOpen: false });
+        return;
+      }
+      const w = Math.max(cfg.min, Math.min(cfg.max, raw));
+      this.setState(isLeft ? { sidebarW: w, sidebarOpen: true } : { outlineW: w, outlineOpen: true });
+    };
+    const up = () => {
+      this.setState({ dragging: null });
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }
+
+  componentDidMount() {
+    this._key = (ev) => {
+      if ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === 'k') { ev.preventDefault(); this.setState({ overlay: 'palette' }); }
+      if (ev.key === 'Escape') this.setState({ overlay: null });
+      if ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === 'b') { ev.preventDefault(); this.setState(s => ({ sidebarOpen: !s.sidebarOpen, layout: 'workbench' })); }
+      if ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === 'j') { ev.preventDefault(); this.setState(s => ({ outlineOpen: !s.outlineOpen, layout: 'workbench' })); }
+    };
+    window.addEventListener('keydown', this._key);
+  }
+  componentWillUnmount() { window.removeEventListener('keydown', this._key); }
+
+  set(p) { this.setState(p); }
+
+  pick(panel) {
+    const s = this.state;
+    const open = s.sidebarOpen && s.layout !== 'reader';
+    this.setState({ panel, layout: 'workbench', sidebarOpen: !(open && s.panel === panel) });
+  }
+
+  outline(d) {
+    return d.outline.map((o, i) => {
+      const [t, lvl] = o;
+      const on = t === d.active;
+      return e('div', {
+        key: i,
+        style: {
+          fontSize: lvl === 1 ? '12.5px' : '12.5px', fontWeight: on ? 600 : lvl === 1 ? 500 : 400,
+          color: on ? 'var(--accent)' : lvl === 3 ? 'var(--text3)' : 'var(--text2)',
+          padding: '4px 10px', paddingLeft: `${10 + (lvl - 1) * 13}px`, borderRadius: '6px', cursor: 'pointer',
+          background: on ? 'var(--accentSoft)' : 'transparent', lineHeight: 1.4,
+        },
+      }, t);
+    });
+  }
+
+  palette() {
+    const rows = [
+      ['⌕', 'Search across vault', '⌘⇧F'], ['◐', 'Toggle theme', '⌘⇧L'], ['▤', 'Toggle sidebar', '⌘B'],
+      ['⇪', 'Export as PDF…', '⌘E'], ['{ }', 'View Markdown source', '⌘/'], ['⌂', 'Open recent…', '⌘R'],
+    ];
+    return e('div', { onClick: (ev) => ev.stopPropagation(), style: { width: '560px', marginTop: '110px', background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: '12px', boxShadow: '0 30px 70px rgba(0,0,0,.4)', overflow: 'hidden', animation: 'mdFade .16s cubic-bezier(.2,.7,.3,1)' } },
+      e('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 18px', borderBottom: '1px solid var(--line2)' } },
+        e('span', { style: { color: 'var(--accent)', fontSize: '15px' } }, '⌘'),
+        e('span', { style: { fontSize: '15px', color: 'var(--text)' } }, 'th'),
+        e('span', { style: { width: '1px', height: '17px', background: 'var(--accent)' } })),
+      e('div', { style: { padding: '8px' } },
+        e('div', { style: { fontSize: '10.5px', fontWeight: 600, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--text3)', padding: '6px 12px' } }, 'Commands'),
+        rows.map(([g, t, k], i) => e('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: '12px', padding: '9px 12px', borderRadius: '8px', cursor: 'pointer', background: i === 0 ? 'var(--accentSoft)' : 'transparent' } },
+          e('span', { style: { width: '16px', textAlign: 'center', color: i === 0 ? 'var(--accent)' : 'var(--text3)', fontSize: '13px' } }, g),
+          e('span', { style: { flex: 1, fontSize: '13.5px', color: 'var(--text)' } }, t),
+          e('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: '10.5px', color: 'var(--text3)', border: '1px solid var(--line)', borderRadius: '4px', padding: '1px 6px' } }, k)))),
+      e('div', { style: { display: 'flex', gap: '16px', padding: '9px 16px', borderTop: '1px solid var(--line2)', background: 'var(--panel2)', fontSize: '11px', color: 'var(--text3)' } },
+        e('span', null, '↑↓ navigate'), e('span', null, '↵ run'), e('span', null, 'esc dismiss')));
+  }
+
+  settings() {
+    const row = (label, hint, control) => e('div', { style: { display: 'flex', alignItems: 'center', gap: '20px', padding: '15px 0', borderBottom: '1px solid var(--line2)' } },
+      e('div', { style: { flex: 1 } },
+        e('div', { style: { fontSize: '13.5px', color: 'var(--text)', marginBottom: '2px' } }, label),
+        e('div', { style: { fontSize: '12px', color: 'var(--text3)', lineHeight: 1.5 } }, hint)),
+      control);
+    const seg = (opts, active) => e('div', { style: { display: 'flex', background: 'var(--panel2)', border: '1px solid var(--line)', borderRadius: '7px', padding: '2px' } },
+      opts.map((o, i) => e('span', { key: i, style: { fontSize: '12px', padding: '4px 11px', borderRadius: '5px', cursor: 'pointer', background: o === active ? 'var(--panel)' : 'transparent', color: o === active ? 'var(--text)' : 'var(--text3)', fontWeight: o === active ? 500 : 400, boxShadow: o === active ? '0 1px 2px rgba(0,0,0,.12)' : 'none' } }, o)));
+    const sw = (on) => e('div', { style: { width: '38px', height: '22px', borderRadius: '12px', background: on ? 'var(--accent)' : 'var(--line)', padding: '2px', display: 'flex', justifyContent: on ? 'flex-end' : 'flex-start', cursor: 'pointer' } }, e('div', { style: { width: '18px', height: '18px', borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,.25)' } }));
+    return e('div', { onClick: (ev) => ev.stopPropagation(), style: { width: '660px', marginTop: '70px', maxHeight: '740px', background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: '12px', boxShadow: '0 30px 70px rgba(0,0,0,.4)', overflow: 'hidden', animation: 'mdFade .16s cubic-bezier(.2,.7,.3,1)', display: 'flex', flexDirection: 'column' } },
+      e('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderBottom: '1px solid var(--line)' } },
+        e('span', { style: { fontFamily: "'Source Serif 4', serif", fontSize: '18px', fontWeight: 600 } }, 'Preferences'),
+        e('span', { onClick: () => this.set({ overlay: null }), style: { color: 'var(--text3)', cursor: 'pointer', fontSize: '14px' } }, '✕')),
+      e('div', { style: { display: 'flex', gap: '4px', padding: '10px 24px 0' } },
+        ['Appearance', 'Reading', 'Rendering', 'Security'].map((t, i) => e('span', { key: i, style: { fontSize: '12.5px', padding: '6px 12px', borderRadius: '7px 7px 0 0', cursor: 'pointer', color: i === 0 ? 'var(--text)' : 'var(--text3)', fontWeight: i === 0 ? 500 : 400, borderBottom: i === 0 ? '2px solid var(--accent)' : '2px solid transparent' } }, t))),
+      e('div', { style: { padding: '6px 24px 24px', overflowY: 'auto' } },
+        row('Theme', 'Follows the OS by default; identical palette on every platform.', seg(['Light', 'Dark', 'Auto'], this.state.theme === 'dark' ? 'Dark' : 'Light')),
+        row('Window chrome', 'Marginalia draws its own titlebar so macOS, Windows and Linux look the same.', seg(['Unified', 'Native'], 'Unified')),
+        row('Reading width', 'Measure of the prose column.', seg(['Narrow', 'Medium', 'Wide'], 'Medium')),
+        row('Prose typeface', 'Headings always set in Source Serif 4.', seg(['Sans', 'Serif'], 'Sans')),
+        row('Render math and diagrams', 'KaTeX and mermaid run from embedded copies — no network access.', sw(true)),
+        row('Allow raw HTML', 'Disables sanitization. Only enable for documents you fully trust.', sw(false))));
+  }
+
+  exportSheet() {
+    return e('div', { onClick: (ev) => ev.stopPropagation(), style: { width: '900px', marginTop: '60px', maxHeight: '760px', background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: '12px', boxShadow: '0 30px 70px rgba(0,0,0,.4)', overflow: 'hidden', animation: 'mdFade .16s cubic-bezier(.2,.7,.3,1)', display: 'flex', flexDirection: 'column' } },
+      e('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderBottom: '1px solid var(--line)' } },
+        e('span', { style: { fontFamily: "'Source Serif 4', serif", fontSize: '18px', fontWeight: 600 } }, 'Export README.md'),
+        e('span', { onClick: () => this.set({ overlay: null }), style: { color: 'var(--text3)', cursor: 'pointer', fontSize: '14px' } }, '✕')),
+      e('div', { style: { display: 'flex', flex: 1, minHeight: 0 } },
+        e('div', { style: { width: '280px', borderRight: '1px solid var(--line)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '18px' } },
+          e('div', null,
+            e('div', { style: { fontSize: '10.5px', fontWeight: 600, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--text3)', marginBottom: '9px' } }, 'Format'),
+            e('div', { style: { display: 'flex', flexDirection: 'column', gap: '5px' } },
+              [['PDF', 'Paginated, embedded fonts'], ['Self-contained HTML', 'Zero external requests'], ['HTML fragment', 'Body-only, host styles']].map(([t, s], i) =>
+                e('div', { key: i, style: { padding: '9px 11px', borderRadius: '8px', border: `1px solid ${i === 0 ? 'var(--accentLine)' : 'var(--line)'}`, background: i === 0 ? 'var(--accentSoft)' : 'transparent', cursor: 'pointer' } },
+                  e('div', { style: { fontSize: '13px', color: 'var(--text)', fontWeight: i === 0 ? 500 : 400 } }, t),
+                  e('div', { style: { fontSize: '11.5px', color: 'var(--text3)', marginTop: '1px' } }, s))))),
+          e('div', null,
+            e('div', { style: { fontSize: '10.5px', fontWeight: 600, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--text3)', marginBottom: '9px' } }, 'Options'),
+            e('div', { style: { display: 'flex', flexDirection: 'column', gap: '9px' } },
+              [['Include heading anchors', true], ['Print theme (light)', true], ['Page numbers', true], ['Table of contents', false]].map(([t, on], i) =>
+                e('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: '9px', fontSize: '13px', color: 'var(--text2)' } },
+                  e('span', { style: { width: '15px', height: '15px', borderRadius: '4px', border: `1px solid ${on ? 'var(--accent)' : 'var(--line)'}`, background: on ? 'var(--accent)' : 'transparent', color: '#fff', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' } }, on ? '✓' : ''), t)))),
+          e('div', { style: { flex: 1 } }),
+          e('div', { style: { display: 'flex', gap: '8px' } },
+            e('span', { onClick: () => this.set({ overlay: null }), style: { flex: 1, textAlign: 'center', fontSize: '13px', padding: '9px', borderRadius: '8px', border: '1px solid var(--line)', color: 'var(--text2)', cursor: 'pointer' } }, 'Cancel'),
+            e('span', { style: { flex: 1, textAlign: 'center', fontSize: '13px', padding: '9px', borderRadius: '8px', background: 'var(--accent)', color: '#fff', fontWeight: 500, cursor: 'pointer' } }, 'Export'))),
+        e('div', { style: { flex: 1, background: 'var(--bg)', padding: '26px', overflowY: 'auto' } },
+          e('div', { style: { background: '#fff', color: '#1b1b1e', boxShadow: '0 8px 30px rgba(0,0,0,.18)', padding: '46px 44px', minHeight: '520px' } },
+            e('div', { style: { fontFamily: "'Source Serif 4', serif", fontSize: '26px', fontWeight: 700, marginBottom: '10px' } }, 'MarkDownViewer'),
+            e('div', { style: { fontSize: '12.5px', lineHeight: 1.7, color: '#333', marginBottom: '18px' } }, 'A modern, embeddable Markdown viewer library for Go. Feed it Markdown, get back self-contained, themed, sanitized HTML — no CDN calls, no external assets, safe to render untrusted input by default.'),
+            e('div', { style: { fontFamily: "'Source Serif 4', serif", fontSize: '15px', fontWeight: 600, borderBottom: '1px solid #e3dfd8', paddingBottom: '5px', marginBottom: '10px' } }, 'Status'),
+            e('div', { style: { fontSize: '12.5px', lineHeight: 1.7, color: '#333', marginBottom: '18px' } }, 'v0.x — the API is not yet frozen. The document model is designed to become the stable contract for future renderers and bindings.'),
+            e('div', { style: { fontFamily: "'Source Serif 4', serif", fontSize: '15px', fontWeight: 600, borderBottom: '1px solid #e3dfd8', paddingBottom: '5px', marginBottom: '10px' } }, 'Features'),
+            e('div', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: '11px', background: '#f4f2ee', border: '1px solid #e3dfd8', borderRadius: '5px', padding: '10px 12px', color: '#444' } }, 'go get github.com/sriannamalai/markdownviewer'),
+            e('div', { style: { textAlign: 'center', fontSize: '10px', color: '#999', marginTop: '40px', fontFamily: "'JetBrains Mono', monospace" } }, '1 / 6')))));
+  }
+
+  welcome() {
+    return e('div', { onClick: (ev) => ev.stopPropagation(), style: { width: '720px', marginTop: '90px', background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: '12px', boxShadow: '0 30px 70px rgba(0,0,0,.4)', padding: '52px 56px 40px', animation: 'mdFade .16s cubic-bezier(.2,.7,.3,1)' } },
+      e('div', { style: { width: '38px', height: '38px', borderRadius: '10px', background: 'linear-gradient(150deg, #2a2d34 0%, #17181c 70%)', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '22px' } },
+        e('svg', { viewBox: '0 0 24 24', style: { width: '38px', height: '38px', display: 'block' } },
+          e('path', { d: 'M8.6 7.6 L5.6 12 L8.6 16.4', fill: 'none', stroke: '#e2714a', strokeWidth: 1.7, strokeLinecap: 'round', strokeLinejoin: 'round', opacity: .22 }),
+          e('path', { d: 'M15.4 7.6 L18.4 12 L15.4 16.4', fill: 'none', stroke: '#e2714a', strokeWidth: 1.7, strokeLinecap: 'round', strokeLinejoin: 'round', opacity: .22 }),
+          e('path', { d: 'M7.3 6.3 L3.8 12 L7.3 17.7', fill: 'none', stroke: '#e2714a', strokeWidth: 1.9, strokeLinecap: 'round', strokeLinejoin: 'round', opacity: .45 }),
+          e('path', { d: 'M16.7 6.3 L20.2 12 L16.7 17.7', fill: 'none', stroke: '#e2714a', strokeWidth: 1.9, strokeLinecap: 'round', strokeLinejoin: 'round', opacity: .45 }),
+          e('path', { d: 'M8.8 16 L8.8 8.8 L12 12.4 L15.2 8.8 L15.2 16', fill: 'none', stroke: 'url(#mdvWelcomeG)', strokeWidth: 2.2, strokeLinecap: 'round', strokeLinejoin: 'round' }),
+          e('defs', null, e('linearGradient', { id: 'mdvWelcomeG', x1: 8.8, y1: 8.8, x2: 15.2, y2: 16, gradientUnits: 'userSpaceOnUse' },
+            e('stop', { offset: '0%', stopColor: '#ffb27d' }),
+            e('stop', { offset: '100%', stopColor: '#e2714a' }))))),
+      e('div', { style: { fontFamily: "'Source Serif 4', serif", fontSize: '30px', fontWeight: 700, letterSpacing: '-.02em', marginBottom: '8px' } }, 'Nothing open yet'),
+      e('div', { style: { fontSize: '14.5px', lineHeight: 1.65, color: 'var(--text2)', maxWidth: '440px', marginBottom: '32px' } }, 'Drop a Markdown file anywhere in this window, or open a folder to browse a whole vault. Rendering happens locally — no file ever leaves your machine.'),
+      e('div', { style: { display: 'flex', gap: '10px', marginBottom: '36px' } },
+        e('span', { onClick: () => this.set({ overlay: null }), style: { fontSize: '13.5px', fontWeight: 500, padding: '10px 18px', borderRadius: '8px', background: 'var(--accent)', color: '#fff', cursor: 'pointer' } }, 'Open folder…'),
+        e('span', { onClick: () => this.set({ overlay: null }), style: { fontSize: '13.5px', padding: '10px 18px', borderRadius: '8px', border: '1px solid var(--line)', color: 'var(--text2)', cursor: 'pointer' } }, 'Open file…')),
+      e('div', { style: { borderTop: '1px solid var(--line2)', paddingTop: '20px', display: 'flex', gap: '48px' } },
+        e('div', { style: { flex: 1 } },
+          e('div', { style: { fontSize: '10.5px', fontWeight: 600, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--text3)', marginBottom: '11px' } }, 'Recent'),
+          e('div', { style: { display: 'flex', flexDirection: 'column', gap: '7px' } },
+            [['MarkDownViewer', '~/src/go'], ['Team specs', '~/Documents/specs'], ['Field notes', '~/vault']].map(([t, p], i) =>
+              e('div', { key: i, onClick: () => this.set({ overlay: null }), style: { display: 'flex', alignItems: 'baseline', gap: '9px', cursor: 'pointer' } },
+                e('span', { style: { fontSize: '13px', color: 'var(--text)' } }, t),
+                e('span', { style: { fontSize: '11.5px', color: 'var(--text3)', fontFamily: "'JetBrains Mono', monospace" } }, p))))),
+        e('div', { style: { flex: 1 } },
+          e('div', { style: { fontSize: '10.5px', fontWeight: 600, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--text3)', marginBottom: '11px' } }, 'Shortcuts'),
+          e('div', { style: { display: 'flex', flexDirection: 'column', gap: '7px' } },
+            [['Command palette', '⌘K'], ['Open folder', '⌘⇧O'], ['Toggle theme', '⌘⇧L']].map(([t, k], i) =>
+              e('div', { key: i, style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' } },
+                e('span', { style: { fontSize: '13px', color: 'var(--text2)' } }, t),
+                e('span', { style: { fontFamily: "'JetBrains Mono', monospace", fontSize: '10.5px', color: 'var(--text3)', border: '1px solid var(--line)', borderRadius: '4px', padding: '1px 6px' } }, k)))))));
+  }
+
+  sourceView(d) {
+    const raw = d.key === 'readme'
+      ? '# MarkDownViewer\n\nA modern, embeddable Markdown viewer library for Go. Feed it\nMarkdown, get back self-contained, themed, sanitized HTML — no\nCDN calls, no external assets, safe to render untrusted input\nby default.\n\n## Status\n\n> [!WARNING]\n> **v0.x — the API is not yet frozen.** The `document` model is\n> designed to become the stable contract for future renderers.\n\n## Features\n\n| Feature          | Notes                                  |\n| ---------------- | -------------------------------------- |\n| CommonMark + GFM | 652/652 spec examples verified         |\n| Footnotes        | `[^1]`-style references                |\n| TeX math         | Inline and block math via KaTeX        |\n\n## Install\n\n```sh\ngo get github.com/sriannamalai/markdownviewer\n```\n'
+      : '# ' + d.title.replace('.md', '') + '\n\nRaw Markdown source.\n';
+    return e('pre', { style: { ...T.pre, background: 'transparent', border: 'none', padding: 0, fontSize: '13px', lineHeight: 1.8, color: 'var(--text2)', whiteSpace: 'pre-wrap' } }, raw);
+  }
+
+  renderVals() {
+    const s = this.state;
+    const d = { ...DOCS[s.doc], key: s.doc };
+    const reader = s.layout === 'reader';
+    const sbOpen = s.sidebarOpen && !reader;
+    const olOpen = s.outlineOpen && !reader;
+    const ease = s.dragging ? 'none' : 'width .22s cubic-bezier(.2,.7,.3,1)';
+    const tab = (k) => k === s.doc
+      ? 'background:var(--bg); color:var(--text); font-weight:500; box-shadow:inset 0 2px 0 var(--accent);'
+      : 'background:var(--panel); color:var(--text3);';
+    const file = (k) => k === s.doc
+      ? 'background:var(--accentSoft); color:var(--accent); font-weight:500;'
+      : 'color:var(--text2);';
+    const rail = (k) => k === s.panel && sbOpen
+      ? 'background:var(--accentSoft); color:var(--accent);'
+      : 'color:var(--text3);';
+
+    return {
+      theme: s.theme,
+      platformLabel: '— macOS · Windows · Linux',
+      themeGlyph: s.theme === 'dark' ? '☀' : '☾',
+      layoutGlyph: reader ? '▭' : '▥',
+      layoutLabel: reader ? 'Reader' : 'Workbench',
+      toggleTheme: () => this.set({ theme: s.theme === 'dark' ? 'light' : 'dark' }),
+      toggleLayout: () => this.set({ layout: reader ? 'workbench' : 'reader' }),
+      toggleSource: () => this.set({ source: !s.source }),
+      sourceLabel: s.source ? 'Rendered' : 'Source',
+      sourceBtn: s.source ? 'background:var(--accentSoft); color:var(--accent);' : '',
+
+      openPalette: () => this.set({ overlay: 'palette' }),
+      openSettings: () => this.set({ overlay: 'settings' }),
+      openExport: () => this.set({ overlay: 'export' }),
+      openWelcome: () => this.set({ overlay: 'welcome' }),
+      closeOverlay: () => this.set({ overlay: null }),
+      hasOverlay: !!s.overlay,
+      overlayBody: s.overlay === 'palette' ? this.palette()
+        : s.overlay === 'settings' ? this.settings()
+          : s.overlay === 'export' ? this.exportSheet()
+            : s.overlay === 'welcome' ? this.welcome() : null,
+
+      showFiles: () => this.pick('files'),
+      showSearch: () => this.pick('search'),
+      showOutlinePanel: () => this.pick('outline'),
+      isFiles: sbOpen && s.panel === 'files',
+      isSearch: sbOpen && s.panel === 'search',
+      isOutlinePanel: sbOpen && s.panel === 'outline',
+      railFiles: rail('files'), railSearch: rail('search'), railOutline: rail('outline'),
+      sidebarTitle: s.panel === 'search' ? 'Search' : s.panel === 'outline' ? 'Outline' : 'Explorer',
+      sidebarMeta: s.panel === 'search' ? '7' : s.panel === 'outline' ? d.outline.length + '' : '12 files',
+
+      sidebarStyle: `min-width:0; transition:${ease}; width:${sbOpen ? s.sidebarW : 0}px;${sbOpen ? '' : ' border-right-color:transparent;'}`,
+      sidebarInner: `width:${s.sidebarW}px; flex:none; min-width:0;`,
+      outlineColStyle: `min-width:0; transition:${ease}; width:${olOpen ? s.outlineW : 0}px;${olOpen ? '' : ' border-left-color:transparent;'}`,
+      outlineInner: `width:${s.outlineW}px; flex:none; min-width:0;`,
+      collapseSidebar: () => this.set({ sidebarOpen: false }),
+      collapseOutline: () => this.set({ outlineOpen: false }),
+      toggleOutline: () => this.set({ outlineOpen: !olOpen, layout: 'workbench' }),
+      outlineBtn: olOpen ? 'background:var(--panel2); color:var(--text);' : '',
+      startSidebarDrag: (ev) => this.startDrag('left', ev),
+      startOutlineDrag: (ev) => this.startDrag('right', ev),
+      resetSidebar: () => this.set({ sidebarW: this.SB.def, sidebarOpen: true }),
+      resetOutline: () => this.set({ outlineW: this.OL.def, outlineOpen: true }),
+      leftHandle: sbOpen ? '' : 'display:none;',
+      rightHandle: olOpen ? '' : 'display:none;',
+      leftHandleBar: s.dragging === 'left' ? 'background:var(--accent); width:2px;' : '',
+      rightHandleBar: s.dragging === 'right' ? 'background:var(--accent); width:2px;' : '',
+      proseWidth: reader ? 'max-width:100%; padding:72px 10% 140px;' : '',
+
+      openReadme: () => this.set({ doc: 'readme' }),
+      openDesign: () => this.set({ doc: 'design' }),
+      openChangelog: () => this.set({ doc: 'changelog' }),
+      tabReadme: tab('readme'), tabDesign: tab('design'), tabChangelog: tab('changelog'),
+      fileReadme: file('readme'), fileDesign: file('design'), fileChangelog: file('changelog'),
+
+      docTitle: d.title,
+      breadcrumb: d.path,
+      docStats: d.stats,
+      words: d.words,
+      readTime: d.read,
+      scrollLabel: d.active,
+      outlineTree: this.outline(d),
+      doc: s.source ? this.sourceView(d) : d.body(),
+    };
+  }
+}
+
+</script>
+</body>
+</html>
