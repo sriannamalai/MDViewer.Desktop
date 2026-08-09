@@ -26,6 +26,9 @@
   "bundle": {
     "active": true,
     "targets": ["app"],
-    "icon": ["icons/icon.icns"]
+    "icon": ["icons/icon.icns"],
+    "macOS": {
+      "frameworks": ["../vendor/libmdviewer/darwin-arm64/libmdviewer.dylib"]
+    }
   }
 }
