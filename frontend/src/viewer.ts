@@ -14,6 +14,11 @@
 // the parent. This module re-emits the former as a `mdviewer:scrollspy`
 // CustomEvent on `window` for later tasks (Task 6's outline) to consume,
 // and exposes `scrollToLine` for them to drive the latter.
+//
+// Task 6 adds the source view (design/README.md §7 "Source view"): a
+// second, plain `<pre>` element that sits alongside the iframe inside the
+// same host and is toggled visible/hidden via `setMode()`. It's raw text,
+// not sandboxed content, so it needs none of the iframe's isolation.
 
 const SCROLLSPY = `<script>
 (function(){
@@ -38,6 +43,7 @@ const SCROLLSPY = `<script>
 
 let host: HTMLElement | null = null;
 let iframe: HTMLIFrameElement | null = null;
+let sourceEl: HTMLPreElement | null = null;
 
 function handleMessage(e: MessageEvent): void {
   if (!iframe || e.source !== iframe.contentWindow) return;
@@ -65,7 +71,7 @@ function handleMessage(e: MessageEvent): void {
 // let listeners accumulate.
 window.addEventListener("message", handleMessage);
 
-/** Creates the iframe inside `container`, filling it entirely. */
+/** Creates the iframe (and the hidden source-view `<pre>`) inside `container`, filling it entirely. */
 export function mount(container: HTMLElement): void {
   host = container;
   host.innerHTML = "";
@@ -73,7 +79,11 @@ export function mount(container: HTMLElement): void {
   iframe.className = "doc-viewer-frame";
   iframe.setAttribute("sandbox", "allow-scripts");
   iframe.setAttribute("title", "Document preview");
-  host.appendChild(iframe);
+
+  sourceEl = document.createElement("pre");
+  sourceEl.className = "doc-source-frame hidden";
+
+  host.append(iframe, sourceEl);
 }
 
 /** Loads `html` (a full rendered page from `render_document`) into the iframe. */
@@ -99,6 +109,19 @@ export function scrollToLine(line: number): void {
   iframe?.contentWindow?.postMessage({ mdviewer: "scrollTo", line }, "*");
 }
 
+/** Fills the source view's `<pre>` with `raw` markdown text (design §7 "Source view"). */
+export function setSource(raw: string): void {
+  if (!host) return;
+  if (!sourceEl) mount(host);
+  sourceEl!.textContent = raw;
+}
+
+/** Switches which of the rendered iframe / raw-source `<pre>` is visible. Toolbar-driven, per tab. */
+export function setMode(mode: "rendered" | "source"): void {
+  iframe?.classList.toggle("hidden", mode === "source");
+  sourceEl?.classList.toggle("hidden", mode !== "source");
+}
+
 /**
  * Render failure state — no toasts (design spec), so this replaces the
  * iframe with a message styled per the welcome surface (`.welcome-title` /
@@ -109,6 +132,7 @@ export function showError(message: string): void {
   if (!host) return;
   host.innerHTML = "";
   iframe = null;
+  sourceEl = null;
 
   const wrap = document.createElement("div");
   wrap.className = "viewer-error";

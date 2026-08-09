@@ -87,7 +87,8 @@ a:hover {
 #outline {
   background: var(--t-bg);
   border-left: 1px solid var(--t-line);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   width: var(--t-outline-w);
   transition: width var(--t-dur) var(--t-ease);
 }
@@ -100,6 +101,21 @@ a:hover {
 #statusbar {
   background: var(--t-panel);
   border-top: 1px solid var(--t-line);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 14px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--t-text3);
+}
+
+.statusbar-dot {
+  color: var(--t-ok);
+}
+
+.statusbar-spacer {
+  flex: 1;
 }
 
 /* -------------------------------------------------------------- Titlebar */
@@ -453,6 +469,70 @@ a:hover {
   flex: 1;
 }
 
+/* -------------------------------------------------------------- Doc toolbar */
+
+.doc-toolbar {
+  height: var(--t-toolbar-h);
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 20px;
+  background: var(--t-bg);
+  border-bottom: 1px solid var(--t-line2);
+}
+
+.doc-toolbar-breadcrumb {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--t-text3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-toolbar-spacer {
+  flex: 1;
+  min-width: 8px;
+}
+
+.doc-toolbar-stats {
+  font-size: 11px;
+  color: var(--t-text3);
+  white-space: nowrap;
+}
+
+.doc-toolbar-divider {
+  width: 1px;
+  height: 14px;
+  background: var(--t-line);
+  flex: none;
+}
+
+.doc-toolbar-btn {
+  font-size: 11.5px;
+  color: var(--t-text2);
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: 5px;
+  white-space: nowrap;
+}
+
+.doc-toolbar-btn:hover {
+  background: var(--t-panel2);
+  color: var(--t-text);
+}
+
+.doc-toolbar-btn.toggled {
+  background: var(--t-panel2);
+  color: var(--t-text);
+}
+
+.doc-toolbar-btn.source-active {
+  background: var(--t-accent-soft);
+  color: var(--t-accent);
+}
+
 /* -------------------------------------------------------- Viewer iframe */
 
 .doc-viewer-frame {
@@ -460,6 +540,22 @@ a:hover {
   height: 100%;
   border: none;
   display: block;
+  background: var(--t-bg);
+}
+
+.doc-source-frame {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 44px 10% 120px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--t-text2);
+  white-space: pre-wrap;
+  word-wrap: break-word;
   background: var(--t-bg);
 }
 
@@ -767,4 +863,92 @@ a:hover {
   border: 1px solid var(--t-line);
   border-radius: 4px;
   padding: 1px 6px;
+}
+
+/* --------------------------------------------------------------- Outline */
+
+.outline-inner {
+  padding: 22px 20px 32px;
+}
+
+.outline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.outline-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--t-text3);
+  white-space: nowrap;
+}
+
+.outline-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.outline-item {
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--t-text2);
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  background: transparent;
+}
+
+.outline-item:hover {
+  background: var(--t-panel2);
+}
+
+.outline-item.h1 {
+  font-weight: 500;
+}
+
+.outline-item.deep {
+  color: var(--t-text3);
+}
+
+.outline-item.active {
+  color: var(--t-accent);
+  font-weight: 600;
+  background: var(--t-accent-soft);
+}
+
+.outline-empty {
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--t-text3);
+}
+
+.outline-footer {
+  margin-top: 26px;
+  padding-top: 16px;
+  border-top: 1px solid var(--t-line2);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.outline-footer-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11.5px;
+}
+
+.outline-footer-label {
+  color: var(--t-text3);
+}
+
+.outline-footer-value {
+  font-family: var(--font-mono);
+  color: var(--t-text2);
 }
