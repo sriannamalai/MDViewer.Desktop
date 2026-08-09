@@ -122,6 +122,9 @@ a:hover {
   min-width: 0;
 }
 
+/* Pinned literal per design/README.md §1 ("charcoal gradient #2a2d34→#17181c
+   150deg") — the app-icon tile is a brand asset, not a themed surface, so
+   it doesn't vary with `--t-*` and isn't a TOKENS.md color-table entry. */
 .titlebar-icon {
   width: 22px;
   height: 22px;
