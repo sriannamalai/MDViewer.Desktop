@@ -66,6 +66,7 @@ fn call(f: impl FnOnce(*mut *mut c_char, *mut usize, *mut *mut c_char) -> c_int)
     let mut err: *mut c_char = std::ptr::null_mut();
     let rc = f(&mut out, &mut out_len, &mut err);
     if rc != 0 {
+        // Library contract: *out stays NULL on failure — nothing to free but err.
         let msg = if err.is_null() {
             "unknown FFI error".to_string()
         } else {
@@ -75,8 +76,13 @@ fn call(f: impl FnOnce(*mut *mut c_char, *mut usize, *mut *mut c_char) -> c_int)
         };
         return Err(FfiError(msg));
     }
-    let bytes = unsafe { std::slice::from_raw_parts(out as *const u8, out_len) }.to_vec();
-    unsafe { mdv_free(out) };
+    let bytes = if out.is_null() {
+        Vec::new()
+    } else {
+        let b = unsafe { std::slice::from_raw_parts(out as *const u8, out_len) }.to_vec();
+        unsafe { mdv_free(out) };
+        b
+    };
     Ok(bytes)
 }
 
@@ -154,6 +160,15 @@ mod tests {
         assert!(mermaid.len() > 100_000);
         let err = asset("bogus.js").unwrap_err();
         assert!(err.0.contains("mermaid.js"), "error lists names: {}", err.0);
+    }
+
+    #[test]
+    fn render_empty_markdown_succeeds() {
+        // Pins the empty-success behavior: exercises the null-guard region
+        // in `call()` when the library may return a zero-length buffer.
+        let html = render("", &RenderOptions::default()).unwrap();
+        assert!(!html.is_empty(), "expected a non-empty full page for empty input");
+        assert!(html.contains("<html"), "expected full page: {html}");
     }
 
     #[test]
