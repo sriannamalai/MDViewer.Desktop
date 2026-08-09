@@ -142,8 +142,14 @@ async function closeTab(path: string): Promise<void> {
     store.activeTab = next ? next.path : null;
   }
   paintChrome();
-  const activeTab = store.openTabs.find((t) => t.path === store.activeTab);
-  if (activeTab) await showTab(activeTab);
+  // Only re-render when the closed tab was the active one — closing a
+  // background tab must never touch the viewer's live iframe (that would
+  // reset scroll position and re-run mermaid/KaTeX on the doc the user is
+  // actually reading).
+  if (wasActive) {
+    const activeTab = store.openTabs.find((t) => t.path === store.activeTab);
+    if (activeTab) await showTab(activeTab);
+  }
 }
 
 /** Opens `path` as a tab (reusing it if already open) and makes it active. Exported for Task 6/7 reuse. */

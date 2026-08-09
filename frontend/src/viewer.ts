@@ -41,11 +41,20 @@ let iframe: HTMLIFrameElement | null = null;
 
 function handleMessage(e: MessageEvent): void {
   if (!iframe || e.source !== iframe.contentWindow) return;
-  const data = e.data as { mdviewer?: string; line?: number; scrollY?: number; docH?: number } | null;
+  const data = e.data as { mdviewer?: string; line?: unknown; scrollY?: unknown; docH?: unknown } | null;
   if (!data || data.mdviewer !== "scrollspy") return;
+  // Trust-boundary coercion: this payload comes from script running inside
+  // the sandboxed iframe. `?? 0` only guards null/undefined — it would let
+  // a hostile or buggy in-sandbox script send strings/objects/NaN straight
+  // through to the CustomEvent that Task 6's outline consumes. Force to
+  // Number and fall back to 0 for anything that doesn't coerce cleanly.
   window.dispatchEvent(
     new CustomEvent("mdviewer:scrollspy", {
-      detail: { line: data.line ?? 0, scrollY: data.scrollY ?? 0, docH: data.docH ?? 0 },
+      detail: {
+        line: Number(data.line) || 0,
+        scrollY: Number(data.scrollY) || 0,
+        docH: Number(data.docH) || 0,
+      },
     }),
   );
 }
