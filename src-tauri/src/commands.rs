@@ -108,6 +108,15 @@ fn is_dotfile(name: &str) -> bool {
 
 #[tauri::command]
 pub fn read_dir_tree(path: String, depth: u8) -> Result<TreeNode, String> {
+    // `build_tree` itself uses `Path::is_dir()`, which is false for a
+    // missing path just as much as for a regular file — left unguarded,
+    // a nonexistent/unreadable root would silently come back as a valid
+    // empty-leaf TreeNode instead of an error. Stat the root explicitly
+    // first so a bad path surfaces as `Err` (with the path in the
+    // message) rather than a misleading success. Entries discovered by
+    // the recursion below the root came from `read_dir`, so they're
+    // known to exist and don't need this check repeated.
+    std::fs::symlink_metadata(&path).map_err(|e| format!("{path}: {e}"))?;
     build_tree(Path::new(&path), depth).map_err(|e| e.to_string())
 }
 
@@ -115,6 +124,11 @@ pub fn read_dir_tree(path: String, depth: u8) -> Result<TreeNode, String> {
 /// levels still allowed to descend: at `depth == 0` the node itself is
 /// still returned (name/path/is_dir/is_markdown), but directories report
 /// no children — the recursion stops before listing them.
+///
+/// Symlinked directories are followed as if they were real subtrees;
+/// `depth` bounds the recursion so a symlink cycle can't hang, but a
+/// cycle within the depth limit can still duplicate the same content
+/// under different paths.
 fn build_tree(path: &Path, depth: u8) -> std::io::Result<TreeNode> {
     let name = path
         .file_name()
@@ -259,5 +273,22 @@ mod tests {
 
         assert!(tree.is_dir);
         assert!(tree.children.is_empty());
+    }
+
+    #[test]
+    fn read_dir_tree_nonexistent_root_is_an_error_not_an_empty_leaf() {
+        let missing = std::env::temp_dir().join(format!(
+            "mdviewer-commands-missing-test-{}",
+            std::time::SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        assert!(!missing.exists());
+
+        let path_str = missing.to_string_lossy().into_owned();
+        let err = read_dir_tree(path_str.clone(), 6).unwrap_err();
+
+        assert!(err.contains(&path_str), "error should name the bad path: {err}");
     }
 }
