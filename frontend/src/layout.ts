@@ -57,8 +57,15 @@ interface Elements {
   outlineInner: HTMLElement;
   sidebarHandle: HTMLElement;
   outlineHandle: HTMLElement;
+  /**
+   * `#rail-outline` is intentionally *not* tracked here — the controller
+   * ruled it inert for v1 (design §3's sidebar-hosted outline panel isn't
+   * built, and §2's "only one icon lights up" contract must hold with
+   * only Files as a real toggle). It keeps its own static "coming in v2"
+   * title in index.html, same as Search/Export; the outline *column*
+   * stays reachable via the doc toolbar's Outline button and ⌘J.
+   */
   railFiles: HTMLElement | null;
-  railOutline: HTMLElement | null;
   layoutGlyph: HTMLElement | null;
   layoutLabel: HTMLElement | null;
   overlay: HTMLElement | null;
@@ -138,7 +145,6 @@ function paint(): void {
   el.outlineHandle.classList.toggle("dragging", dragging === "outline");
 
   el.railFiles?.classList.toggle("active", sbOpen);
-  el.railOutline?.classList.toggle("active", olOpen);
 
   const reader = state.layout === "reader";
   document.documentElement.dataset.layout = state.layout;
@@ -168,20 +174,17 @@ export function setOutlineOpen(open: boolean): void {
 }
 
 /**
- * Rail Files/Outline icon click (design §2): clicking the icon whose panel
- * is already open closes it; clicking the other one opens *its* panel.
- * Always returns to Workbench — picking a rail panel while in Reader
- * exits reader mode (matches design/reference's `pick()`).
+ * Rail Files icon click (design §2) — the only live rail-panel toggle in
+ * v1 (Outline is ruled inert; see the `railFiles` field's doc comment
+ * above). Clicking it while the sidebar is already open+active closes it;
+ * otherwise opens it. Always returns to Workbench — picking it while in
+ * Reader exits reader mode (matches design/reference's `pick()`).
  */
-export function pickPanel(panel: RailPanel): void {
-  const openNow = panel === "files" ? effectiveSidebarOpen() : effectiveOutlineOpen();
-  const wasActive = state.activePanel === panel;
+export function pickFilesPanel(): void {
+  const openNow = effectiveSidebarOpen();
+  const wasActive = state.activePanel === "files";
   const nextOpen = !(openNow && wasActive);
-  if (panel === "files") {
-    commit({ activePanel: panel, layout: "workbench", sidebarOpen: nextOpen });
-  } else {
-    commit({ activePanel: panel, layout: "workbench", outlineOpen: nextOpen });
-  }
+  commit({ activePanel: "files", layout: "workbench", sidebarOpen: nextOpen });
 }
 
 /** Doc toolbar's "Outline" button — also forces Workbench (design/reference's `toggleOutline`), so it doubles as "leave reader and show the outline". */
@@ -295,10 +298,14 @@ function onKeydown(ev: KeyboardEvent): void {
   const key = ev.key.toLowerCase();
   if (isPrimaryModifier(ev) && key === "b") {
     ev.preventDefault();
-    commit({ sidebarOpen: !state.sidebarOpen, layout: "workbench" });
+    // Toggle the *effective* (reader-mode-aware) state, not the raw stored
+    // boolean: in reader mode with sidebarOpen stored true (so effectively
+    // hidden), the first ⌘B must exit reader AND show the panel, not just
+    // flip the boolean to false and leave it hidden.
+    commit({ sidebarOpen: !effectiveSidebarOpen(), layout: "workbench" });
   } else if (isPrimaryModifier(ev) && key === "j") {
     ev.preventDefault();
-    commit({ outlineOpen: !state.outlineOpen, layout: "workbench" });
+    commit({ outlineOpen: !effectiveOutlineOpen(), layout: "workbench" });
   }
 }
 
@@ -313,7 +320,6 @@ export function init(opts: InitOptions): void {
     sidebarHandle: requireEl("sidebar-handle"),
     outlineHandle: requireEl("outline-handle"),
     railFiles: document.getElementById("rail-files"),
-    railOutline: document.getElementById("rail-outline"),
     layoutGlyph: document.getElementById("layout-glyph"),
     layoutLabel: document.getElementById("layout-label"),
     overlay: document.getElementById("overlay"),
@@ -337,8 +343,10 @@ export function init(opts: InitOptions): void {
   el.outlineHandle.addEventListener("mousedown", (ev) => startDrag("outline", ev));
   el.outlineHandle.addEventListener("dblclick", () => resetOutlineWidth());
 
-  el.railFiles?.addEventListener("click", () => pickPanel("files"));
-  el.railOutline?.addEventListener("click", () => pickPanel("outline"));
+  // Rail Outline is inert for v1 (controller ruling) — no click wiring, no
+  // "active" paint; the right-hand outline column stays reachable via the
+  // doc toolbar's Outline button (toggleOutline()) and ⌘J.
+  el.railFiles?.addEventListener("click", () => pickFilesPanel());
   document.getElementById("layout-toggle")?.addEventListener("click", () => toggleReaderMode());
 
   el.overlay?.addEventListener("click", (ev) => {

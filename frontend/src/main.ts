@@ -396,6 +396,11 @@ async function boot(): Promise<void> {
 
   paintChrome();
   renderStatusbar(); // paints app-level facts (sanitized/CommonMark/KaTeX) even before any tab is open
+
+  // Reveal #app now that theme/widths/chrome all reflect restored state —
+  // chrome.css starts it at opacity:0 specifically so this is the first
+  // frame the user ever sees (no flash of CSS defaults beforehand).
+  document.getElementById("app")?.classList.add("booted");
 }
 
 window.addEventListener("beforeunload", () => appstate.flush());

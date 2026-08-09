@@ -57,6 +57,16 @@ a:hover {
   background: var(--t-bg);
   color: var(--t-text);
   font-size: 12.5px;
+  /* Boot-restore flash guard: hidden until main.ts's boot() has applied
+     appstate.load()'s persisted theme/widths and finished its first
+     paintChrome() — so the CSS defaults (light theme, 268/236 widths)
+     never get an on-screen frame before the restored values do. */
+  opacity: 0;
+}
+
+#app.booted {
+  opacity: 1;
+  transition: opacity var(--t-dur-veil) ease-out;
 }
 
 /* Flex, not grid — the two resize handles (design §4) are real 5px-wide
@@ -113,6 +123,11 @@ a:hover {
 }
 
 #main {
+  /* The grid→flex conversion (resize handles, above) left every sibling
+     flex:none; without an explicit grow factor here #main sized to its
+     content instead of stretching to fill the space between the sidebar
+     and the outline column/window edge. */
+  flex: 1 1 auto;
   background: var(--t-bg);
   overflow: auto;
   min-width: 0;
