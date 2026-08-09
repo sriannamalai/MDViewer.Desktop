@@ -2,9 +2,11 @@
 // every `--t-*` custom property in tokens.css keys off of — every other
 // module just reads `var(--t-*)` and never touches the theme directly.
 //
-// Persistence across sessions is Task 7's job (it wires save/load through
-// `ipc.ts`'s ui-state commands); for now the current theme lives in this
-// module's local state only, as called out in the task brief.
+// Persistence across sessions is main.ts's job (it calls `initTheme()`
+// with the value `appstate.load()` restored, and persists further changes
+// via a second `#theme-toggle` listener registered after this module's
+// own) — this module itself stays persistence-agnostic, just current
+// theme + DOM application.
 
 export type Theme = "light" | "dark";
 

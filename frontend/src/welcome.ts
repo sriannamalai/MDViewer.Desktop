@@ -91,13 +91,13 @@ export function mount(container: HTMLElement, recents: RecentEntry[], cb: Welcom
 
   const footer = document.createElement("div");
   footer.className = "welcome-footer";
-  footer.append(buildRecentColumn(recents), buildShortcutsColumn());
+  footer.append(buildRecentColumn(recents, cb), buildShortcutsColumn());
   card.appendChild(footer);
 
   container.appendChild(card);
 }
 
-function buildRecentColumn(recents: RecentEntry[]): HTMLElement {
+function buildRecentColumn(recents: RecentEntry[], cb: WelcomeCallbacks): HTMLElement {
   const col = document.createElement("div");
   col.className = "welcome-col";
 
@@ -109,8 +109,7 @@ function buildRecentColumn(recents: RecentEntry[]): HTMLElement {
   if (recents.length === 0) {
     const empty = document.createElement("div");
     empty.className = "sidebar-recent-empty";
-    // Static placeholder — Task 7 wires this from persisted UI state.
-    empty.textContent = "No recent folders yet.";
+    empty.textContent = "No recent files yet.";
     col.appendChild(empty);
     return col;
   }
@@ -118,6 +117,7 @@ function buildRecentColumn(recents: RecentEntry[]): HTMLElement {
   for (const entry of recents) {
     const row = document.createElement("div");
     row.className = "welcome-recent-row";
+    row.addEventListener("click", () => cb.onOpenFile(entry.path));
     const name = document.createElement("span");
     name.className = "name";
     name.textContent = entry.label;

@@ -19,7 +19,7 @@ export interface OutlineFooterStats {
 export interface OutlineCallbacks {
   /** Row click — main.ts wires this to viewer.scrollToLine(). */
   onSelect(line: number): void;
-  /** Header ⇥ button — hides the outline column (main.ts owns that state). */
+  /** Header ⇥ button — hides the outline column (layout.ts owns that state). */
   onCollapse(): void;
 }
 

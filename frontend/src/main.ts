@@ -1,7 +1,9 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { initTitlebar } from "./titlebar";
-import { initRail, collapseSidebar } from "./rail";
+import { initRail } from "./rail";
 import { initTheme, getTheme } from "./theme";
+import * as layout from "./layout";
+import * as appstate from "./appstate";
 import * as ipc from "./ipc";
 import type { DocModel, ThemeName, TreeNode } from "./ipc";
 import * as viewer from "./viewer";
@@ -18,8 +20,10 @@ import * as statusbarUi from "./statusbar";
 // single place that mutates it; explorer.ts, tabs.ts, welcome.ts,
 // outline.ts, toolbar.ts, statusbar.ts and viewer.ts are all stateless
 // renderers driven by callbacks into `openFile`/`openFolder`/`selectTab`/
-// `closeTab` (and, for Task 6's additions, `setOutlineOpen`/
-// `toggleSourceView`) here.
+// `closeTab`/`toggleSourceView` here. Panel open/width/reader-mode state
+// (Task 7) lives in layout.ts instead — this module just re-renders the
+// doc-toolbar/outline when layout.ts reports a change relevant to them,
+// and forwards layout.ts's state into appstate.ts for persistence.
 
 interface OpenTab {
   path: string;
@@ -48,11 +52,15 @@ const store: Store = { openTabs: [], activeTab: null, treeRoot: null };
 const FILE_FILTERS = [{ name: "Markdown", extensions: ["md", "markdown", "txt"] }];
 
 const sidebarEl = document.getElementById("sidebar");
+const sidebarInnerEl = document.getElementById("sidebar-inner");
 const mainEl = document.getElementById("main");
 const outlineEl = document.getElementById("outline");
+const outlineInnerEl = document.getElementById("outline-inner-wrap");
 const statusbarEl = document.getElementById("statusbar");
-if (!sidebarEl || !mainEl || !outlineEl || !statusbarEl) {
-  throw new Error("main.ts: #sidebar/#main/#outline/#statusbar not found — index.html shell changed?");
+if (!sidebarEl || !sidebarInnerEl || !mainEl || !outlineEl || !outlineInnerEl || !statusbarEl) {
+  throw new Error(
+    "main.ts: #sidebar/#sidebar-inner/#main/#outline/#outline-inner-wrap/#statusbar not found — index.html shell changed?",
+  );
 }
 
 // #main's internal structure: a tab strip, a doc toolbar, a viewer content
@@ -72,10 +80,6 @@ welcomeHostEl.className = "welcome-host";
 mainEl.append(tabstripEl, toolbarEl, contentEl, welcomeHostEl);
 
 viewer.mount(contentEl);
-
-/** Outline column's user-toggled visibility — a plain boolean for now; Task 7 folds this into persisted layout state. */
-let outlineOpen = true;
-outlineEl.dataset.collapsed = "false";
 
 /** Fetched once at startup — same version for every doc, so no need to re-fetch per tab. */
 let libVersion = "";
@@ -125,7 +129,7 @@ function updateDocPanels(tab: OpenTab): void {
 function renderOutline(tab: OpenTab): void {
   const doc = tab.doc;
   outlineUi.render(
-    outlineEl!,
+    outlineInnerEl!,
     doc?.outline ?? [],
     doc ? { words: doc.words, readMinutes: doc.read_minutes, modifiedMs: tab.modifiedMs } : null,
     {
@@ -134,28 +138,21 @@ function renderOutline(tab: OpenTab): void {
         outlineUi.setActiveLine(line);
         renderStatusbar();
       },
-      onCollapse: () => setOutlineOpen(false),
+      onCollapse: () => layout.setOutlineOpen(false),
     },
   );
 }
 
 function renderToolbar(tab: OpenTab): void {
-  toolbarUi.render(toolbarEl, tab.path, { lines: tab.lines, bytes: tab.bytes }, outlineOpen, tab.sourceView, {
-    onToggleOutline: () => setOutlineOpen(!outlineOpen),
+  const root: toolbarUi.BreadcrumbRoot | null = store.treeRoot ? { name: store.treeRoot.name, path: store.treeRoot.path } : null;
+  toolbarUi.render(toolbarEl, tab.path, root, { lines: tab.lines, bytes: tab.bytes }, layout.isOutlineOpen(), tab.sourceView, {
+    onToggleOutline: () => layout.toggleOutline(),
     onToggleSource: () => toggleSourceView(tab),
   });
 }
 
 function renderStatusbar(): void {
   statusbarUi.render(statusbarEl!, { libraryVersion: libVersion, activeSection: outlineUi.activeItem()?.text ?? "" });
-}
-
-/** Outline column's ⇥ / toolbar "Outline" toggle — hides/shows the column. Task 7 replaces this with full layout state. */
-function setOutlineOpen(open: boolean): void {
-  outlineOpen = open;
-  outlineEl!.dataset.collapsed = open ? "false" : "true";
-  const tab = store.openTabs.find((t) => t.path === store.activeTab);
-  if (tab) renderToolbar(tab);
 }
 
 /** Toolbar's Source/Rendered toggle — per-tab flag; swaps the viewer's live view without re-rendering. */
@@ -201,8 +198,7 @@ function paintChrome(): void {
   );
 
   if (!hasTabs) {
-    // Recent columns are static until Task 7 wires persisted UI state.
-    welcomeUi.mount(welcomeHostEl, [], {
+    welcomeUi.mount(welcomeHostEl, welcomeRecents(), {
       onOpenFolder: (path) => {
         void openFolder(path);
       },
@@ -212,12 +208,47 @@ function paintChrome(): void {
     });
   }
 
-  explorerUi.render(sidebarEl!, store.treeRoot, store.activeTab, [], {
+  explorerUi.render(sidebarInnerEl!, store.treeRoot, store.activeTab, explorerRecents(), {
     onOpenFile: (path) => {
       void openFile(path);
     },
-    onCollapse: collapseSidebar,
+    onCollapse: () => layout.setSidebarOpen(false),
   });
+}
+
+/** `path/to/file.md` → `to/file.md` — last two path segments, matching design/reference's own "Recent" row style (e.g. "notes/2026-08-04.md"). */
+function shortenPath(path: string): string {
+  const parts = path.replace(/\\/g, "/").split("/").filter(Boolean);
+  return parts.length <= 2 ? parts.join("/") : parts.slice(-2).join("/");
+}
+
+/** "2h"/"1d"/"3d"-style relative time, matching design/reference's Explorer Recent rows. */
+function formatRelativeTime(ms: number): string {
+  const diffSec = Math.max(0, Math.floor((Date.now() - ms) / 1000));
+  if (diffSec < 60) return "now";
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h`;
+  return `${Math.floor(diffHr / 24)}d`;
+}
+
+/** appstate's persisted recents, formatted for the Explorer's "Recent" section (design §3: "path + relative-time"). */
+function explorerRecents(): explorerUi.RecentEntry[] {
+  return appstate.getState().recents.map((r) => ({
+    label: shortenPath(r.path),
+    path: r.path,
+    when: formatRelativeTime(r.openedAt),
+  }));
+}
+
+/** Same recents, formatted for the Welcome screen's "Recent" section (design §11: "name + mono path rows"). */
+function welcomeRecents(): welcomeUi.RecentEntry[] {
+  return appstate.getState().recents.map((r) => ({
+    label: fileName(r.path),
+    path: r.path,
+    when: formatRelativeTime(r.openedAt),
+  }));
 }
 
 async function selectTab(path: string): Promise<void> {
@@ -272,6 +303,7 @@ export async function openFile(path: string): Promise<void> {
     }
   }
   store.activeTab = path;
+  appstate.addRecent(path); // every successful open bumps recency, even for an already-open tab reselected via Explorer/Welcome
   paintChrome();
   await showTab(tab);
 }
@@ -300,15 +332,72 @@ async function onThemeChanged(): Promise<void> {
   if (tab) await showTab(tab); // background tabs stay cached under the old theme and re-render lazily on next activation
 }
 
-initTheme("light");
-initTitlebar();
-initRail();
+/**
+ * Forwards layout.ts's panel/reader state into appstate.ts on every
+ * change, and re-paints the doc toolbar (its Outline-toggled state and,
+ * via `data-layout`'s CSS, prose padding both depend on it) whenever
+ * `outlineOpen`/`layout` actually change — not on every drag-resize
+ * mousemove, which only touches widths the toolbar doesn't render.
+ */
+let lastToolbarRelevant: { outlineOpen: boolean; layout: layout.LayoutMode } | null = null;
+function onLayoutChange(s: layout.LayoutState): void {
+  appstate.update({
+    layout: s.layout,
+    sidebarOpen: s.sidebarOpen,
+    outlineOpen: s.outlineOpen,
+    sidebarWidth: s.sidebarWidth,
+    outlineWidth: s.outlineWidth,
+    activePanel: s.activePanel,
+  });
+  if (!lastToolbarRelevant || lastToolbarRelevant.outlineOpen !== s.outlineOpen || lastToolbarRelevant.layout !== s.layout) {
+    lastToolbarRelevant = { outlineOpen: s.outlineOpen, layout: s.layout };
+    const tab = store.openTabs.find((t) => t.path === store.activeTab);
+    if (tab) renderToolbar(tab);
+  }
+}
 
-// Registered after initTheme()'s own #theme-toggle listener (which flips
-// the theme state), so getTheme() here already reflects the new theme.
-document.getElementById("theme-toggle")?.addEventListener("click", () => {
-  void onThemeChanged();
-});
+/** Boots the app: restores persisted UI state *before* the first paint (no flash of default widths/theme), then wires the rest of the chrome. */
+async function boot(): Promise<void> {
+  const persisted = await appstate.load();
 
-paintChrome();
-renderStatusbar(); // paints app-level facts (sanitized/CommonMark/KaTeX) even before any tab is open
+  initTheme(persisted.theme);
+  layout.init({
+    initial: {
+      sidebarOpen: persisted.sidebarOpen,
+      outlineOpen: persisted.outlineOpen,
+      sidebarWidth: persisted.sidebarWidth,
+      outlineWidth: persisted.outlineWidth,
+      layout: persisted.layout,
+      activePanel: persisted.activePanel === "outline" ? "outline" : "files",
+    },
+    onChange: onLayoutChange,
+    renderWelcomeOverlay: (host) => {
+      welcomeUi.mount(host, welcomeRecents(), {
+        onOpenFolder: (path) => {
+          layout.closeOverlay();
+          void openFolder(path);
+        },
+        onOpenFile: (path) => {
+          layout.closeOverlay();
+          void openFile(path);
+        },
+      });
+    },
+  });
+  initTitlebar();
+  initRail();
+
+  // Registered after initTheme()'s own #theme-toggle listener (which flips
+  // the theme state), so getTheme() here already reflects the new theme.
+  document.getElementById("theme-toggle")?.addEventListener("click", () => {
+    appstate.update({ theme: getTheme() });
+    void onThemeChanged();
+  });
+
+  paintChrome();
+  renderStatusbar(); // paints app-level facts (sanitized/CommonMark/KaTeX) even before any tab is open
+}
+
+window.addEventListener("beforeunload", () => appstate.flush());
+
+void boot();

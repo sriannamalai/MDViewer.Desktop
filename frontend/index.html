@@ -123,12 +123,32 @@
           <div class="rail-btn" id="rail-export" title="Export — coming in v2">&#8682;</div>
           <div class="rail-btn" id="rail-home" title="Home">&#8962;</div>
         </div>
-        <div id="sidebar"></div>
+        <div id="sidebar"><div id="sidebar-inner" class="sidebar-inner"></div></div>
+        <!-- Resize handles — design/README.md §4: 5px hit area straddling
+             the seam (negative margins pull it over both neighbors'
+             borders), col-resize cursor, invisible idle / 2px accent bar
+             on hover or drag. layout.ts owns the mousedown/dblclick wiring
+             and the .dragging/.hidden state. -->
+        <div id="sidebar-handle" class="resize-handle" title="Drag to resize · double-click to reset">
+          <div class="resize-handle-bar"></div>
+        </div>
         <div id="main"></div>
-        <div id="outline"></div>
+        <div id="outline-handle" class="resize-handle" title="Drag to resize · double-click to reset">
+          <div class="resize-handle-bar"></div>
+        </div>
+        <div id="outline"><div id="outline-inner-wrap" class="outline-inner-wrap"></div></div>
       </div>
 
       <div id="statusbar"></div>
+
+      <!-- "Welcome over doc" overlay — rail's Home button (design/README.md
+           §2, §11). Hidden by default; layout.ts shows/hides it and wires
+           veil-click/Esc dismissal, main.ts supplies the welcome content
+           (recents + open callbacks) via layout.init()'s
+           renderWelcomeOverlay hook. -->
+      <div id="overlay" class="overlay-veil hidden">
+        <div id="overlay-content"></div>
+      </div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

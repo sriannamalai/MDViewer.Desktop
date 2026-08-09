@@ -59,23 +59,57 @@ a:hover {
   font-size: 12.5px;
 }
 
+/* Flex, not grid — the two resize handles (design §4) are real 5px-wide
+   flex items with negative margins that pull them over the seam between
+   sidebar/main and main/outline, exactly like design/reference's own
+   layout. A CSS-grid track can't be straddled with negative margins the
+   same way, so this replaced the earlier grid-template-columns approach. */
 #workbench-body {
-  display: grid;
-  grid-template-columns: var(--t-rail-w) auto 1fr auto;
+  display: flex;
   min-height: 0;
 }
 
 #sidebar {
+  flex: none;
   background: var(--t-panel);
   border-right: 1px solid var(--t-line);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   width: var(--t-sidebar-w);
   transition: width var(--t-dur) var(--t-ease);
 }
 
+/* layout.ts sets #sidebar/#outline's actual width as an inline style every
+   paint (it has to — the value is a per-session number, not a fixed
+   token), which always wins over this rule's `width`. This selector is
+   just for the border-color half of "collapsed" (inline styles can't
+   target a pseudo-state-like attribute the way a CSS rule can). */
 #sidebar[data-collapsed="true"] {
-  width: 0;
   border-right-color: transparent;
+}
+
+/* Fixed-width content mount inside #sidebar (design/reference's
+   `sidebarInner`) — kept at the panel's real width even while the outer
+   #sidebar's width transitions toward 0, so text clips/slides away on
+   collapse instead of reflowing/squishing mid-animation. explorer.ts
+   renders into this element, not #sidebar directly. */
+.sidebar-inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  width: var(--t-sidebar-w);
+}
+
+/* Suppresses width transitions while a handle is being dragged (design §4:
+   "width transitions suppressed while dragging") — also used for one
+   initial frame at boot so restoring a persisted width never visibly
+   animates in. */
+#sidebar.dragging,
+#outline.dragging {
+  transition: none;
 }
 
 #main {
@@ -85,6 +119,7 @@ a:hover {
 }
 
 #outline {
+  flex: none;
   background: var(--t-bg);
   border-left: 1px solid var(--t-line);
   overflow-x: hidden;
@@ -94,8 +129,51 @@ a:hover {
 }
 
 #outline[data-collapsed="true"] {
-  width: 0;
   border-left-color: transparent;
+}
+
+/* Fixed-width content mount inside #outline — same purpose as
+   .sidebar-inner above; outline.ts renders its own padded `.outline-inner`
+   into this. */
+.outline-inner-wrap {
+  min-width: 0;
+  width: var(--t-outline-w);
+}
+
+/* ---------------------------------------------------------- Resize handles */
+
+.resize-handle {
+  flex: none;
+  width: 5px;
+  z-index: 5;
+  cursor: col-resize;
+  display: flex;
+  justify-content: center;
+}
+
+#sidebar-handle {
+  margin-left: -3px;
+  margin-right: -2px;
+}
+
+#outline-handle {
+  margin-left: -2px;
+  margin-right: -3px;
+}
+
+.resize-handle-bar {
+  width: 1px;
+  height: 100%;
+  background: transparent;
+  transition:
+    background 0.12s,
+    width 0.12s;
+}
+
+.resize-handle:hover .resize-handle-bar,
+.resize-handle.dragging .resize-handle-bar {
+  background: var(--t-accent);
+  width: 2px;
 }
 
 #statusbar {
@@ -376,9 +454,19 @@ a:hover {
   min-height: 0;
 }
 
+/* Prose padding lives here (the iframe/source container), not inside the
+   rendered document — design §5 + "State management": side margins stay
+   10% of *this element's* width at any panel/window size, and Workbench
+   vs Reader is just a padding swap animated like any other layout change. */
 .doc-content {
   flex: 1;
   min-height: 0;
+  padding: 44px 10% 120px;
+  transition: padding var(--t-dur) var(--t-ease);
+}
+
+html[data-layout="reader"] .doc-content {
+  padding: 72px 10% 140px;
 }
 
 .welcome-host {
@@ -547,7 +635,10 @@ a:hover {
   width: 100%;
   height: 100%;
   margin: 0;
-  padding: 44px 10% 120px;
+  /* No padding here — .doc-content (the shared iframe/source container)
+     now owns the workbench/reader padding swap; double-padding this too
+     would offset the source view from the rendered view. */
+  padding: 0;
   box-sizing: border-box;
   overflow-y: auto;
   font-family: var(--font-mono);
@@ -951,4 +1042,38 @@ a:hover {
 .outline-footer-value {
   font-family: var(--font-mono);
   color: var(--t-text2);
+}
+
+/* ---------------------------------------------------------- Overlay veil */
+
+/* "Welcome over doc" — rail's Home button (design §2/§11 "Overlays: veil
+   click or Esc dismisses"). Only overlay v1 ships; command palette/
+   settings/export sheets are later tasks. */
+.overlay-veil {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 11, 12, 0.45);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  z-index: 50;
+  animation: mdv-veil var(--t-dur-veil) ease-out;
+}
+
+@keyframes mdv-veil {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* welcome.ts's card is normally centered by .welcome-host's flex; inside
+   the overlay it instead sits a fixed distance from the top (design §11:
+   "90px from top"), matching the veil's align-items:flex-start. */
+#overlay .welcome-card {
+  margin-top: 90px;
+  animation: mdv-veil var(--t-dur-overlay) var(--t-ease);
 }

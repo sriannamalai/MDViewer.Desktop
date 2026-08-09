@@ -20,7 +20,7 @@ export interface RecentEntry {
 
 export interface ExplorerCallbacks {
   onOpenFile(path: string): void;
-  /** Header ⇤ button — collapses the sidebar (owned by rail.ts). */
+  /** Header ⇤ button — collapses the sidebar (owned by layout.ts). */
   onCollapse(): void;
 }
 
@@ -66,7 +66,7 @@ function paint(): void {
     body.appendChild(empty);
   }
 
-  body.appendChild(buildRecent(recents));
+  body.appendChild(buildRecent(recents, cb));
   container.appendChild(body);
 }
 
@@ -156,7 +156,7 @@ function appendNode(parent: HTMLElement, node: TreeNode, depth: number, activePa
   }
 }
 
-function buildRecent(recents: RecentEntry[]): HTMLElement {
+function buildRecent(recents: RecentEntry[], cb: ExplorerCallbacks): HTMLElement {
   const section = document.createElement("div");
   section.className = "sidebar-recent";
 
@@ -168,7 +168,6 @@ function buildRecent(recents: RecentEntry[]): HTMLElement {
   if (recents.length === 0) {
     const empty = document.createElement("div");
     empty.className = "sidebar-recent-empty";
-    // Static placeholder — Task 7 wires this from persisted UI state.
     empty.textContent = "No recent files yet.";
     section.appendChild(empty);
     return section;
@@ -179,6 +178,8 @@ function buildRecent(recents: RecentEntry[]): HTMLElement {
   for (const entry of recents) {
     const row = document.createElement("div");
     row.className = "recent-row";
+    row.title = entry.path;
+    row.addEventListener("click", () => cb.onOpenFile(entry.path));
     const name = document.createElement("span");
     name.textContent = entry.label;
     const when = document.createElement("span");
