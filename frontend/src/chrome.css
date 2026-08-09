@@ -346,9 +346,124 @@ a:hover {
   flex: 1;
 }
 
-/* --------------------------------------------------------- Welcome placeholder */
+/* --------------------------------------------------------------- Utility */
 
-.welcome-placeholder {
+.hidden {
+  display: none !important;
+}
+
+/* ---------------------------------------------------------- Main column */
+
+#main.main-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.doc-content {
+  flex: 1;
+  min-height: 0;
+}
+
+.welcome-host {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+}
+
+/* ------------------------------------------------------------ Tab strip */
+
+.doc-tabstrip {
+  height: 38px;
+  flex: none;
+  display: flex;
+  align-items: stretch;
+  background: var(--t-panel);
+  border-bottom: 1px solid var(--t-line);
+}
+
+.doc-tab {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 14px;
+  cursor: pointer;
+  font-size: 12.5px;
+  border-right: 1px solid var(--t-line);
+  min-width: 150px;
+  background: var(--t-panel);
+  color: var(--t-text3);
+}
+
+.doc-tab.active {
+  background: var(--t-bg);
+  color: var(--t-text);
+  font-weight: 500;
+  box-shadow: inset 0 2px 0 var(--t-accent);
+}
+
+.doc-tab-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--t-accent);
+  flex: none;
+}
+
+.doc-tab-badge.plain {
+  color: var(--t-text3);
+}
+
+.doc-tab-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-tab-close {
+  font-size: 12px;
+  color: var(--t-text3);
+  opacity: 0.7;
+}
+
+.doc-tab-close:hover {
+  opacity: 1;
+  color: var(--t-text);
+}
+
+.doc-tab-new {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  flex: none;
+  color: var(--t-text3);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.doc-tab-new:hover {
+  color: var(--t-text);
+}
+
+.doc-tab-spacer {
+  flex: 1;
+}
+
+/* -------------------------------------------------------- Viewer iframe */
+
+.doc-viewer-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+  background: var(--t-bg);
+}
+
+.viewer-error {
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -357,18 +472,299 @@ a:hover {
   gap: 8px;
   text-align: center;
   padding: 40px;
+  background: var(--t-bg);
+}
+
+/* ------------------------------------------------------ Sidebar / Explorer */
+
+.sidebar-header {
+  height: 38px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 8px 0 16px;
+  border-bottom: 1px solid var(--t-line2);
+}
+
+.sidebar-title {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--t-text3);
+  white-space: nowrap;
+}
+
+.sidebar-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sidebar-meta {
+  font-size: 11px;
+  color: var(--t-text3);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.sidebar-collapse-btn {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 5px;
+  cursor: pointer;
+  color: var(--t-text3);
+  font-size: 11px;
+}
+
+.sidebar-collapse-btn:hover {
+  background: var(--t-panel2);
+  color: var(--t-text);
+}
+
+.sidebar-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 8px 16px;
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  padding: 5px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12.5px;
+  color: var(--t-text2);
+}
+
+.tree-row.dir {
+  gap: 6px;
+}
+
+.tree-row.file {
+  gap: 8px;
+}
+
+.tree-row:hover {
+  background: var(--t-panel2);
+}
+
+.tree-row.active {
+  background: var(--t-accent-soft);
+  color: var(--t-accent);
+  font-weight: 500;
+}
+
+.tree-caret {
+  font-size: 9px;
+  color: var(--t-text3);
+  width: 10px;
+  flex: none;
+  text-align: center;
+}
+
+.tree-folder-icon {
+  opacity: 0.8;
+  flex: none;
+}
+
+.tree-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--t-accent);
+  width: 10px;
+  flex: none;
+  text-align: center;
+}
+
+.tree-badge.plain {
+  color: var(--t-text3);
+}
+
+.tree-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.explorer-empty {
+  padding: 8px;
+  font-size: 12px;
+  color: var(--t-text3);
+}
+
+.sidebar-recent {
+  margin: 16px 8px 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--t-line2);
+}
+
+.sidebar-section-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--t-text3);
+  margin-bottom: 8px;
+}
+
+.sidebar-recent-empty {
+  font-size: 12px;
+  color: var(--t-text3);
+}
+
+.sidebar-recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.recent-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 12.5px;
+  color: var(--t-text2);
+  cursor: pointer;
+}
+
+.recent-row:hover {
+  color: var(--t-text);
+}
+
+.recent-row-time {
+  font-size: 10.5px;
+  color: var(--t-text3);
+  font-family: var(--font-mono);
+}
+
+/* --------------------------------------------------------------- Welcome */
+
+.welcome-card {
+  width: 720px;
+  max-width: 90%;
+  background: var(--t-panel);
+  border: 1px solid var(--t-line);
+  border-radius: var(--t-radius-overlay);
+  box-shadow: var(--t-shadow);
+  padding: 52px 56px 40px;
+}
+
+.welcome-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  /* Pinned literal per design/README.md §1/§11 — the brand icon tile
+     gradient, not a themed surface (see the identical exemption on
+     .titlebar-icon above). */
+  background: linear-gradient(150deg, #2a2d34 0%, #17181c 70%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 22px;
 }
 
 .welcome-title {
   font-family: var(--font-serif);
-  font-size: 26px;
+  font-size: 30px;
   font-weight: 700;
+  letter-spacing: -0.02em;
   color: var(--t-text);
+  margin-bottom: 8px;
 }
 
 .welcome-body {
-  font-size: 13.5px;
+  font-size: 14.5px;
+  line-height: 1.65;
   color: var(--t-text2);
-  max-width: 420px;
-  line-height: 1.6;
+  max-width: 440px;
+  margin-bottom: 32px;
+}
+
+.welcome-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 36px;
+}
+
+.welcome-btn {
+  font-size: 13.5px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.welcome-btn-primary {
+  font-weight: 500;
+  background: var(--t-accent);
+  color: #fff;
+}
+
+.welcome-btn-outline {
+  border: 1px solid var(--t-line);
+  color: var(--t-text2);
+}
+
+.welcome-footer {
+  border-top: 1px solid var(--t-line2);
+  padding-top: 20px;
+  display: flex;
+  gap: 48px;
+}
+
+.welcome-col {
+  flex: 1;
+  min-width: 0;
+}
+
+.welcome-recent-row {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  cursor: pointer;
+  padding: 3.5px 0;
+}
+
+.welcome-recent-row:hover .name {
+  text-decoration: underline;
+}
+
+.welcome-recent-row .name {
+  font-size: 13px;
+  color: var(--t-text);
+}
+
+.welcome-recent-row .path {
+  font-size: 11.5px;
+  color: var(--t-text3);
+  font-family: var(--font-mono);
+}
+
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3.5px 0;
+}
+
+.shortcut-row span:first-child {
+  font-size: 13px;
+  color: var(--t-text2);
+}
+
+.shortcut-key {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--t-text3);
+  border: 1px solid var(--t-line);
+  border-radius: 4px;
+  padding: 1px 6px;
 }

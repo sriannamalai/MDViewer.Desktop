@@ -1,12 +1,13 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Baseline window permissions for the frameless, custom-drawn titlebar (design/README.md §1): minimize/toggleMaximize/close are IPC commands and, unlike the drag region, are ACL-gated. Scoped to exactly what titlebar.ts calls — allow-maximize/allow-unmaximize are separate commands the frontend never invokes (it only calls toggleMaximize()) and are deliberately omitted.",
+  "description": "Baseline window permissions for the frameless, custom-drawn titlebar (design/README.md §1): minimize/toggleMaximize/close are IPC commands and, unlike the drag region, are ACL-gated. Scoped to exactly what titlebar.ts calls — allow-maximize/allow-unmaximize are separate commands the frontend never invokes (it only calls toggleMaximize()) and are deliberately omitted. `dialog:allow-open` is scoped the same way for welcome.ts/tabs.ts's file/folder pickers — they only ever call the plugin's `open()`, never `save()` or the message/ask dialogs, so `dialog:default` (which grants all of those) is deliberately not used.",
   "windows": ["main"],
   "permissions": [
     "core:default",
     "core:window:allow-minimize",
     "core:window:allow-toggle-maximize",
-    "core:window:allow-close"
+    "core:window:allow-close",
+    "dialog:allow-open"
   ]
 }
