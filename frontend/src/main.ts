@@ -1,4 +1,7 @@
-const app = document.querySelector<HTMLDivElement>("#app");
-if (app) {
-  app.textContent = "MarkDownViewer — scaffold OK";
-}
+import { initTitlebar } from "./titlebar";
+import { initRail } from "./rail";
+import { initTheme } from "./theme";
+
+initTheme("light");
+initTitlebar();
+initRail();

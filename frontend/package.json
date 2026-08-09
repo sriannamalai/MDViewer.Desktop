@@ -7,6 +7,9 @@
     "build": "tsc --noEmit && vite build"
   },
   "dependencies": {
+    "@fontsource/ibm-plex-sans": "^5",
+    "@fontsource/jetbrains-mono": "^5",
+    "@fontsource/source-serif-4": "^5",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2"
   },

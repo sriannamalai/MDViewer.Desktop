@@ -4,9 +4,128 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MarkDownViewer</title>
+    <link rel="stylesheet" href="/src/tokens.css" />
+    <link rel="stylesheet" href="/src/chrome.css" />
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <!-- Titlebar — design/README.md §1. Whole bar is the drag region
+           except its interactive children (search pill, buttons). -->
+      <div id="titlebar" data-tauri-drag-region>
+        <div class="titlebar-left" data-tauri-drag-region>
+          <div class="titlebar-icon">
+            <svg viewBox="0 0 24 24">
+              <path
+                d="M8.6 7.6 L5.6 12 L8.6 16.4"
+                fill="none"
+                stroke="#e2714a"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                opacity="0.22"
+              ></path>
+              <path
+                d="M15.4 7.6 L18.4 12 L15.4 16.4"
+                fill="none"
+                stroke="#e2714a"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                opacity="0.22"
+              ></path>
+              <path
+                d="M7.3 6.3 L3.8 12 L7.3 17.7"
+                fill="none"
+                stroke="#e2714a"
+                stroke-width="1.9"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                opacity="0.45"
+              ></path>
+              <path
+                d="M16.7 6.3 L20.2 12 L16.7 17.7"
+                fill="none"
+                stroke="#e2714a"
+                stroke-width="1.9"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                opacity="0.45"
+              ></path>
+              <path
+                d="M8.8 16 L8.8 8.8 L12 12.4 L15.2 8.8 L15.2 16"
+                fill="none"
+                stroke="url(#mdvTitleG)"
+                stroke-width="2.2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              ></path>
+              <defs>
+                <linearGradient
+                  id="mdvTitleG"
+                  x1="8.8"
+                  y1="8.8"
+                  x2="15.2"
+                  y2="16"
+                  gradientUnits="userSpaceOnUse"
+                >
+                  <stop offset="0%" stop-color="#ffb27d"></stop>
+                  <stop offset="100%" stop-color="#e2714a"></stop>
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <span class="titlebar-wordmark">MarkDown<span class="dim">Viewer</span></span>
+          <span class="titlebar-platform" id="platform-hint">&mdash; macOS &middot; Windows &middot; Linux</span>
+        </div>
+
+        <div class="titlebar-search" id="titlebar-search" title="Search — coming in v2">
+          <span class="titlebar-search-icon">&#9906;</span>
+          <span class="titlebar-search-label">Search files and headings</span>
+          <span class="titlebar-search-key">&#8984;K</span>
+        </div>
+
+        <div class="titlebar-right" data-tauri-drag-region>
+          <div class="titlebar-layout" id="layout-toggle" title="Toggle layout">
+            <span class="titlebar-layout-glyph" id="layout-glyph">&#9635;</span>
+            <span id="layout-label">Workbench</span>
+          </div>
+          <div class="titlebar-btn" id="theme-toggle" title="Toggle theme">
+            <span id="theme-glyph">&#9789;</span>
+          </div>
+          <div class="titlebar-btn" id="settings-btn" title="Settings — coming in v2">&#9881;</div>
+          <div class="titlebar-divider"></div>
+          <div class="titlebar-winctl">
+            <div class="titlebar-winbtn" id="win-minimize" title="Minimize">
+              <div class="winctl-min-glyph"></div>
+            </div>
+            <div class="titlebar-winbtn" id="win-maximize" title="Maximize">
+              <div class="winctl-max-glyph"></div>
+            </div>
+            <div class="titlebar-winbtn close" id="win-close" title="Close">
+              <span class="winctl-close-glyph">&#10005;</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Body — design/README.md §2-6. Rail is built by this task; sidebar,
+           main and outline are empty slots filled by later tasks. -->
+      <div id="workbench-body">
+        <div id="rail">
+          <div class="rail-btn" id="rail-files" title="Files">&#9638;</div>
+          <div class="rail-btn" id="rail-search" title="Search — coming in v2">&#9906;</div>
+          <div class="rail-btn" id="rail-outline" title="Outline">&#9776;</div>
+          <div class="rail-spacer"></div>
+          <div class="rail-btn" id="rail-export" title="Export — coming in v2">&#8682;</div>
+          <div class="rail-btn" id="rail-home" title="Home">&#8962;</div>
+        </div>
+        <div id="sidebar"></div>
+        <div id="main"></div>
+        <div id="outline"></div>
+      </div>
+
+      <div id="statusbar"></div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

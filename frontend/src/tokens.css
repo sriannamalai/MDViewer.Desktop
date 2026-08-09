@@ -1,0 +1,103 @@
+/*
+ * Design tokens — mirrors design/TOKENS.md exactly. Only colors defined
+ * here (and the literal `#c1502e` close-hover pinned in chrome.css per
+ * design/README.md §1) may be used anywhere in the app.
+ *
+ * Fonts are bundled via @fontsource (no network requests) at the specific
+ * weights the design calls for:
+ *   IBM Plex Sans   400 / 500 / 600  (UI chrome)
+ *   Source Serif 4  400 / 600 / 700  (prose headings)
+ *   JetBrains Mono  400 / 500        (meta / mono UI)
+ */
+
+@import "@fontsource/ibm-plex-sans/400.css";
+@import "@fontsource/ibm-plex-sans/500.css";
+@import "@fontsource/ibm-plex-sans/600.css";
+@import "@fontsource/source-serif-4/400.css";
+@import "@fontsource/source-serif-4/600.css";
+@import "@fontsource/source-serif-4/700.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
+
+:root {
+  /* Font stacks */
+  --font-ui: "IBM Plex Sans", system-ui, sans-serif;
+  --font-serif: "Source Serif 4", serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  /* Motion (design/TOKENS.md "Spacing & geometry" → Motion) */
+  --t-ease: cubic-bezier(0.2, 0.7, 0.3, 1);
+  --t-dur: 0.22s;
+  --t-dur-overlay: 0.16s;
+  --t-dur-veil: 0.14s;
+
+  /* Bar heights */
+  --t-titlebar-h: 44px;
+  --t-panelheader-h: 38px;
+  --t-toolbar-h: 36px;
+  --t-statusbar-h: 26px;
+
+  /* Panel widths */
+  --t-rail-w: 48px;
+  --t-sidebar-w: 268px;
+  --t-sidebar-min: 190px;
+  --t-sidebar-max: 460px;
+  --t-outline-w: 236px;
+  --t-outline-min: 180px;
+  --t-outline-max: 400px;
+
+  /* Radii */
+  --t-radius-window: 12px;
+  --t-radius-overlay: 12px;
+  --t-radius-block: 8px;
+  --t-radius-control: 7px;
+  --t-radius-badge: 4px;
+}
+
+:root[data-theme="light"] {
+  --t-bg: #f7f6f3;
+  --t-panel: #ffffff;
+  --t-panel2: #f1efeb;
+  --t-line: #e3dfd8;
+  --t-line2: #eeebe5;
+  --t-text: #1b1b1e;
+  --t-text2: #6c6960;
+  --t-text3: #96928a;
+  --t-accent: #c1502e;
+  --t-accent-soft: rgba(193, 80, 46, 0.1);
+  --t-accent-line: rgba(193, 80, 46, 0.35);
+  --t-code: #f4f2ee;
+  --t-ok: #2f7a4f;
+  --t-note: #2f6bbf;
+  --t-note-soft: rgba(47, 107, 191, 0.09);
+  --t-syn-kw: #9b2c6f;
+  --t-syn-str: #2f7a4f;
+  --t-syn-com: #9a958c;
+  --t-syn-fn: #2f6bbf;
+  --t-syn-num: #a35a09;
+  --t-shadow: 0 40px 90px rgba(0, 0, 0, 0.55);
+}
+
+:root[data-theme="dark"] {
+  --t-bg: #131418;
+  --t-panel: #1a1c21;
+  --t-panel2: #212429;
+  --t-line: #2c3037;
+  --t-line2: #23262b;
+  --t-text: #e9e7e2;
+  --t-text2: #9b988f;
+  --t-text3: #75726b;
+  --t-accent: #e97a52;
+  --t-accent-soft: rgba(233, 122, 82, 0.13);
+  --t-accent-line: rgba(233, 122, 82, 0.4);
+  --t-code: #1e2126;
+  --t-ok: #86d5a1;
+  --t-note: #83b4f0;
+  --t-note-soft: rgba(131, 180, 240, 0.1);
+  --t-syn-kw: #e08bc0;
+  --t-syn-str: #86d5a1;
+  --t-syn-com: #6e6b65;
+  --t-syn-fn: #83b4f0;
+  --t-syn-num: #e0a45e;
+  --t-shadow: 0 40px 90px rgba(0, 0, 0, 0.7);
+}
