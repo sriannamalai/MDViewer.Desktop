@@ -54,3 +54,26 @@ Produces `src-tauri/target/release/bundle/macos/MarkDownViewer.app`, with
 `libmdviewer.dylib` copied into `Contents/Frameworks` and resolved via the
 `@executable_path/../Frameworks` rpath — the bundle runs standalone, no
 separately installed library required.
+
+## Known limitations (v1)
+
+- **Bundle target is pinned to darwin-arm64.** `vendor/libmdviewer/` only
+  vendors the arm64 dylib by default; building the `.app` on another
+  target would embed the wrong-arch library. Multi-target bundling
+  (fetching + packaging per-arch in CI) is deferred to CI work.
+- **The release binary embeds the dev vendor rpath.** It's harmless (the
+  bundle also resolves `libmdviewer` via `@executable_path/../Frameworks`
+  and runs standalone), but cleaning the stale rpath out of the release
+  binary itself is deferred.
+- **Visual verification of the built `.app` bundle's mermaid/math
+  rendering is on the pre-release checklist, not yet done for v1.**
+  Rendering has been verified in the dev app (`cargo tauri dev`); the
+  built bundle's launch and library linkage have been verified, but a
+  visual pass on mermaid/KaTeX specifically inside the packaged `.app`
+  still needs to happen before release.
+- **External links and images inside documents load network content.**
+  The sandboxed viewer (`<iframe sandbox="allow-scripts">`) doesn't block
+  outbound requests a document's own HTML makes — e.g. a remote image or
+  a tracking pixel. v2 will intercept/gate this; for v1, treat opened
+  documents as trusted-ish content from disk, not fully sandboxed from
+  the network.

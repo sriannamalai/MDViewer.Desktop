@@ -1,4 +1,5 @@
 import { open } from "@tauri-apps/plugin-dialog";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { initTitlebar } from "./titlebar";
 import { initRail } from "./rail";
 import { initTheme, getTheme } from "./theme";
@@ -77,9 +78,39 @@ const contentEl = document.createElement("div");
 contentEl.className = "doc-content";
 const welcomeHostEl = document.createElement("div");
 welcomeHostEl.className = "welcome-host";
-mainEl.append(tabstripEl, toolbarEl, contentEl, welcomeHostEl);
+// Sits above whichever of {tabstrip+toolbar+content, welcome} is visible —
+// open failures (Finding 1: a Recent/Explorer entry whose file was deleted,
+// a folder that vanished) must surface *something* on screen regardless of
+// whether any tab is open, not just a console.error nobody but a developer
+// will ever see.
+const openErrorEl = document.createElement("div");
+openErrorEl.className = "open-error hidden";
+mainEl.append(openErrorEl, tabstripEl, toolbarEl, contentEl, welcomeHostEl);
 
 viewer.mount(contentEl);
+
+function errMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+/** Shows a dismissible inline banner at the top of #main — the "silent console.error" fix for Finding 1. */
+function showOpenError(message: string): void {
+  openErrorEl.innerHTML = "";
+  const text = document.createElement("span");
+  text.className = "open-error-text";
+  text.textContent = message;
+  const dismiss = document.createElement("span");
+  dismiss.className = "open-error-dismiss";
+  dismiss.textContent = "×";
+  dismiss.title = "Dismiss";
+  dismiss.addEventListener("click", () => hideOpenError());
+  openErrorEl.append(text, dismiss);
+  openErrorEl.classList.remove("hidden");
+}
+
+function hideOpenError(): void {
+  openErrorEl.classList.add("hidden");
+}
 
 /** Fetched once at startup — same version for every doc, so no need to re-fetch per tab. */
 let libVersion = "";
@@ -115,7 +146,12 @@ async function showTab(tab: OpenTab): Promise<void> {
     viewer.setMode(tab.sourceView ? "source" : "rendered");
     updateDocPanels(tab);
   } catch (err) {
-    viewer.showError(err instanceof Error ? err.message : String(err));
+    viewer.showError(errMessage(err));
+    // Rider finding 4: a render failure must not leave the *previous*
+    // tab's outline/toolbar/statusbar painted next to the new error
+    // surface — blank them so the chrome doesn't lie about which
+    // document they describe.
+    clearDocPanels();
   }
 }
 
@@ -123,6 +159,16 @@ async function showTab(tab: OpenTab): Promise<void> {
 function updateDocPanels(tab: OpenTab): void {
   renderOutline(tab);
   renderToolbar(tab);
+  renderStatusbar();
+}
+
+/** Blanks outline/toolbar/status-bar panels — used when showTab() fails so stale side panels don't stay painted next to the error surface (Finding 4). */
+function clearDocPanels(): void {
+  outlineUi.render(outlineInnerEl!, [], null, {
+    onSelect: () => {},
+    onCollapse: () => layout.setOutlineOpen(false),
+  });
+  toolbarEl.innerHTML = "";
   renderStatusbar();
 }
 
@@ -298,10 +344,16 @@ export async function openFile(path: string): Promise<void> {
       };
       store.openTabs.push(tab);
     } catch (err) {
+      // Finding 1: was console.error-only — clicking a Recent/Explorer
+      // entry whose file has since been moved/deleted did nothing visible.
+      // Surface it inline in #main; the banner works whether or not any
+      // tab is currently open (welcome screen or doc view underneath it).
       console.error(`openFile(${path}) failed:`, err);
+      showOpenError(`Couldn't open "${fileName(path)}" — ${errMessage(err)}`);
       return;
     }
   }
+  hideOpenError();
   store.activeTab = path;
   appstate.addRecent(path); // every successful open bumps recency, even for an already-open tab reselected via Explorer/Welcome
   paintChrome();
@@ -316,15 +368,61 @@ export async function openFolder(path: string): Promise<void> {
     // explorer.ts never needs another round trip.
     store.treeRoot = await ipc.readDirTree(path, 8);
   } catch (err) {
+    // Finding 1, folder side — same silent-console-only gap as openFile().
     console.error(`openFolder(${path}) failed:`, err);
+    showOpenError(`Couldn't open folder "${fileName(path)}" — ${errMessage(err)}`);
     return;
   }
+  hideOpenError();
   paintChrome();
 }
 
 async function pickAndOpenFile(): Promise<void> {
   const picked = await open({ multiple: false, filters: FILE_FILTERS });
   if (typeof picked === "string") await openFile(picked);
+}
+
+/** Native folder-picker dialog → openFolder(). Mirrors welcome.ts's own "Open folder…" button; reused by the ⌘⇧O/Ctrl⇧O shortcut (Finding 2). */
+async function pickAndOpenFolder(): Promise<void> {
+  const picked = await open({ directory: true, multiple: false });
+  if (typeof picked === "string") await openFolder(picked);
+}
+
+const DROPPABLE_EXT = /\.(md|markdown|txt)$/i;
+
+/**
+ * Filters a drag-drop event's paths down to files this app can open and
+ * opens each via openFile() — split out from the onDragDropEvent listener
+ * below so it's independently testable: a real OS drag can't be
+ * synthesized in a headless/Playwright run, but this pure path-filtering
+ * step can be exercised directly (Finding 2, drag-drop route).
+ */
+export function handleDroppedPaths(paths: string[]): void {
+  for (const path of paths) {
+    if (DROPPABLE_EXT.test(path)) void openFile(path);
+  }
+}
+
+/**
+ * Wires Tauri's window-level drag-drop event to openFile() (Finding 2).
+ * `core:default` already grants `core:event:allow-listen` (confirmed via
+ * `src-tauri/gen/schemas/acl-manifests.json`: core's default_permission
+ * pulls in `core:event:default`, whose default permission is exactly
+ * allow-listen/unlisten/emit/emit-to) and `dragDropEnabled` is Tauri's
+ * webview default, so no capability grant was needed for this. Wrapped in
+ * a .catch() because this same code also runs against a plain Vite dev
+ * server (Playwright verification, no `window.__TAURI_INTERNALS__`) where
+ * the event plumbing isn't present — that must degrade quietly rather than
+ * break app boot.
+ */
+function wireDragDrop(): void {
+  void getCurrentWebview()
+    .onDragDropEvent((event) => {
+      if (event.payload.type === "drop") handleDroppedPaths(event.payload.paths);
+    })
+    .catch((err) => {
+      console.error("drag-drop wiring unavailable:", err);
+    });
 }
 
 async function onThemeChanged(): Promise<void> {
@@ -383,9 +481,23 @@ async function boot(): Promise<void> {
         },
       });
     },
+    // Finding 2: the welcome screen's Shortcuts column listed ⌘⇧O/⌘⇧L
+    // without either being wired to anything. Both are one-liners into
+    // functions that already exist — the folder-picker flow welcome.ts's
+    // own button uses, and the titlebar's own theme-toggle button (click()
+    // dispatch reuses its two existing listeners — theme.ts's flip and the
+    // persist+re-render one registered below — instead of duplicating
+    // their logic here).
+    onOpenFolderShortcut: () => {
+      void pickAndOpenFolder();
+    },
+    onToggleThemeShortcut: () => {
+      document.getElementById("theme-toggle")?.click();
+    },
   });
   initTitlebar();
   initRail();
+  wireDragDrop();
 
   // Registered after initTheme()'s own #theme-toggle listener (which flips
   // the theme state), so getTheme() here already reflects the new theme.

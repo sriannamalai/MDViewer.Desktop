@@ -469,6 +469,46 @@ a:hover {
   min-height: 0;
 }
 
+/* Finding 1: inline open-error banner — sits above whichever of
+   {tabstrip+toolbar+content, welcome} is visible, so a failed open (a
+   Recent/Explorer entry whose file/folder vanished) always surfaces
+   something on screen, tabs open or not. No toasts (design spec) — same
+   calm, in-flow language as .viewer-error/.welcome-body rather than an
+   alert dialog. */
+.open-error {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 16px;
+  font-size: 12.5px;
+  color: var(--t-text);
+  background: var(--t-accent-soft);
+  border-bottom: 1px solid var(--t-accent-line);
+}
+
+.open-error-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.open-error-dismiss {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 5px;
+  cursor: pointer;
+  color: var(--t-text2);
+}
+
+.open-error-dismiss:hover {
+  background: var(--t-panel2);
+  color: var(--t-text);
+}
+
 /* Prose padding lives here (the iframe/source container), not inside the
    rendered document — design §5 + "State management": side margins stay
    10% of *this element's* width at any panel/window size, and Workbench
@@ -962,6 +1002,12 @@ html[data-layout="reader"] .doc-content {
   color: var(--t-text2);
 }
 
+/* Finding 2: marks the still-unwired ⌘K row (title="…— coming in v2") so
+   it reads as informational, not a working affordance. */
+.shortcut-row.inert span:first-child {
+  color: var(--t-text3);
+}
+
 .shortcut-key {
   font-family: var(--font-mono);
   font-size: 10.5px;
@@ -1090,5 +1136,21 @@ html[data-layout="reader"] .doc-content {
    "90px from top"), matching the veil's align-items:flex-start. */
 #overlay .welcome-card {
   margin-top: 90px;
-  animation: mdv-veil var(--t-dur-overlay) var(--t-ease);
+  animation: mdv-overlay-rise var(--t-dur-overlay) var(--t-ease);
+}
+
+/* Rider finding 5: TOKENS.md's "Spacing & geometry" → Motion spec calls
+   overlays' own motion fade+rise (`translateY(6px) scale(.985)` → none),
+   distinct from the veil behind them (which stays fade-only, mdv-veil
+   above) — the welcome-over-doc card was using the veil's fade-only
+   keyframes instead of its own. */
+@keyframes mdv-overlay-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }

@@ -48,6 +48,10 @@ export interface InitOptions {
   onChange(state: LayoutState): void;
   /** Renders the welcome-overlay's content into `host` — main.ts owns Recent data + open callbacks; this module only owns show/hide + veil/Esc dismissal. */
   renderWelcomeOverlay(host: HTMLElement): void;
+  /** ⌘⇧O / Ctrl⇧O (welcome screen's Shortcuts column, Finding 2) — main.ts's own folder-picker-dialog flow. */
+  onOpenFolderShortcut(): void;
+  /** ⌘⇧L / Ctrl⇧L (welcome screen's Shortcuts column, Finding 2) — main.ts's own theme-toggle flow. */
+  onToggleThemeShortcut(): void;
 }
 
 interface Elements {
@@ -75,6 +79,8 @@ interface Elements {
 let el: Elements;
 let onChange: (state: LayoutState) => void = () => {};
 let renderWelcomeOverlay: (host: HTMLElement) => void = () => {};
+let onOpenFolderShortcut: () => void = () => {};
+let onToggleThemeShortcut: () => void = () => {};
 
 let state: LayoutState = {
   sidebarOpen: true,
@@ -306,6 +312,14 @@ function onKeydown(ev: KeyboardEvent): void {
   } else if (isPrimaryModifier(ev) && key === "j") {
     ev.preventDefault();
     commit({ outlineOpen: !effectiveOutlineOpen(), layout: "workbench" });
+  } else if (isPrimaryModifier(ev) && ev.shiftKey && key === "o") {
+    // Welcome screen's Shortcuts column (Finding 2) — ⌘⇧O on mac,
+    // Ctrl⇧O elsewhere per isPrimaryModifier()'s existing convention.
+    ev.preventDefault();
+    onOpenFolderShortcut();
+  } else if (isPrimaryModifier(ev) && ev.shiftKey && key === "l") {
+    ev.preventDefault();
+    onToggleThemeShortcut();
   }
 }
 
@@ -328,6 +342,8 @@ export function init(opts: InitOptions): void {
 
   onChange = opts.onChange;
   renderWelcomeOverlay = opts.renderWelcomeOverlay;
+  onOpenFolderShortcut = opts.onOpenFolderShortcut;
+  onToggleThemeShortcut = opts.onToggleThemeShortcut;
 
   state = {
     sidebarOpen: opts.initial.sidebarOpen ?? state.sidebarOpen,

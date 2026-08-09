@@ -34,10 +34,18 @@ const ICON_SVG = `<svg viewBox="0 0 24 24" width="38" height="38">
   </defs>
 </svg>`;
 
-const SHORTCUTS: [string, string][] = [
-  ["Command palette", "⌘K"],
-  ["Open folder", "⌘⇧O"],
-  ["Toggle theme", "⌘⇧L"],
+/**
+ * `title` marks an inert row — same "Label — coming in v2" tooltip
+ * convention as the titlebar search pill and the rail's Search/Outline/
+ * Export buttons (index.html). Finding 2: ⌘⇧O and ⌘⇧L are now genuinely
+ * wired (layout.ts's keyboard handler → main.ts's folder-picker/
+ * theme-toggle flows); ⌘K stays listed but flagged as not-yet-real rather
+ * than either implying it works or disappearing from the list entirely.
+ */
+const SHORTCUTS: { text: string; key: string; title?: string }[] = [
+  { text: "Command palette", key: "⌘K", title: "Command palette — coming in v2" },
+  { text: "Open folder", key: "⌘⇧O" },
+  { text: "Toggle theme", key: "⌘⇧L" },
 ];
 
 const FILE_FILTERS = [{ name: "Markdown", extensions: ["md", "markdown", "txt"] }];
@@ -139,9 +147,10 @@ function buildShortcutsColumn(): HTMLElement {
   label.textContent = "Shortcuts";
   col.appendChild(label);
 
-  for (const [text, key] of SHORTCUTS) {
+  for (const { text, key, title } of SHORTCUTS) {
     const row = document.createElement("div");
-    row.className = "shortcut-row";
+    row.className = "shortcut-row" + (title ? " inert" : "");
+    if (title) row.title = title;
     const t = document.createElement("span");
     t.textContent = text;
     const k = document.createElement("span");
