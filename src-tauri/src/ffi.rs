@@ -1,4 +1,4 @@
-//! Safe wrapper over the libmdviewer C ABI (v0.5.0).
+//! Safe wrapper over the libmdviewer C ABI (v0.8.1).
 //! Every out-buffer the library returns is copied into Rust memory and
 //! immediately released with mdv_free. All functions are thread-safe
 //! (library guarantee).
@@ -17,6 +17,10 @@ impl std::error::Error for FfiError {}
 pub struct RenderOptions {
     pub theme: String,
     pub source_map: bool,
+    /// Code-block header row (uppercase language label + Copy affordance).
+    /// Library-rendered since v0.8; the strict options JSON of older
+    /// libraries rejects the key, so only emit it when set.
+    pub code_header: bool,
     pub theme_overrides: BTreeMap<String, String>,
 }
 
@@ -30,6 +34,9 @@ impl RenderOptions {
         }
         if self.source_map {
             obj.insert("sourceMap".into(), true.into());
+        }
+        if self.code_header {
+            obj.insert("codeHeader".into(), true.into());
         }
         if !self.theme_overrides.is_empty() {
             obj.insert(
@@ -111,8 +118,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn version_reports_0_5() {
-        assert!(version().starts_with("0.5"), "got {}", version());
+    fn version_reports_0_8_1() {
+        assert!(version().starts_with("0.8.1"), "got {}", version());
     }
 
     #[test]
@@ -139,9 +146,10 @@ mod tests {
         // Guards the strict-JSON contract: our serializer must not emit
         // unknown fields. Serialize and assert only documented keys.
         let opts = RenderOptions { theme: "light".into(), source_map: true,
+            code_header: true,
             theme_overrides: [("--md-bg".to_string(), "#fff".to_string())].into() };
         let json = opts.to_json();
-        for key in ["\"theme\"", "\"sourceMap\"", "\"themeOverrides\""] {
+        for key in ["\"theme\"", "\"sourceMap\"", "\"codeHeader\"", "\"themeOverrides\""] {
             assert!(json.contains(key), "{json}");
         }
         assert!(!json.contains("\"fragment\""), "must omit defaults: {json}");

@@ -49,7 +49,15 @@ fn theme_overrides(theme: &str) -> std::collections::BTreeMap<String, String> {
 #[tauri::command]
 pub fn render_document(markdown: String, theme: String) -> Result<String, String> {
     let overrides = theme_overrides(&theme);
-    let opts = ffi::RenderOptions { theme, source_map: true, theme_overrides: overrides };
+    // `code_header` is always on: design/README.md §7 specifies code blocks
+    // with a header row (uppercase language + Copy affordance), which the
+    // library renders itself since v0.8.
+    let opts = ffi::RenderOptions {
+        theme,
+        source_map: true,
+        code_header: true,
+        theme_overrides: overrides,
+    };
     ffi::render(&markdown, &opts).map_err(|e| e.to_string())
 }
 
@@ -193,6 +201,17 @@ mod tests {
         let html = render_document("# T\n".into(), "light".into()).unwrap();
         assert!(html.contains("#f7f6f3"), "missing light bg override: {html}");
         assert!(html.contains("#f4f2ee"), "missing light code-bg override: {html}");
+    }
+
+    #[test]
+    fn render_document_emits_code_block_header() {
+        // design/README.md §7: code blocks carry a header row (language +
+        // Copy affordance). Rendered by the library since v0.8; this app
+        // requests it unconditionally.
+        let html = render_document("```go\nfmt.Println(1)\n```\n".into(), "light".into()).unwrap();
+        assert!(html.contains("md-code-header"), "missing code header: {html}");
+        assert!(html.contains("md-code-lang"), "missing language label: {html}");
+        assert!(html.contains("md-code-copy"), "missing Copy affordance: {html}");
     }
 
     #[test]
