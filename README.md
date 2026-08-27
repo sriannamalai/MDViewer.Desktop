@@ -16,7 +16,7 @@ The design targets a **frameless window with a custom-drawn titlebar** so the ap
 
 The app is a Tauri 2 shell (Rust + a small TypeScript frontend) over
 [`libmdviewer`](vendor/libmdviewer/darwin-arm64/README.md), a prebuilt C-shared
-library pinned at **v0.8.1** and vendored per-platform under `vendor/libmdviewer/`.
+library pinned at **v0.10.0** and vendored per-platform under `vendor/libmdviewer/`.
 
 ### Prerequisites
 

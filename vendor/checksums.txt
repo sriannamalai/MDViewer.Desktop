@@ -1,2 +1,2 @@
-4ba5cee558ff8b72dbf8b00826c1416295d1c06f4e78fbc59d17c434c395e891  libmdviewer-0.8.1-darwin-arm64.zip
-1710613960ecfc241b56e8dcf7bcf056673912e1c573e6c83cef40a31bcbb466  libmdviewer-0.8.1-darwin-amd64.zip
+806cdbf3944df98690b10cc82e493e8bf5b2fb303d8c46faa674734144ff585b  libmdviewer-0.10.0-darwin-arm64.zip
+920fb41b7e76e60f5f84867fc54b4b912d024fb637bee4b20d2f558350381a03  libmdviewer-0.10.0-darwin-amd64.zip

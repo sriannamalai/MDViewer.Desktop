@@ -15,11 +15,15 @@ pixel-identical on every OS. 19 commits, version `0.1.0`, still pre-v1.
 - **`~/Developer/OpenSource/MarkDownViewer`** — the rendering engine this
   app embeds. Consumed here via the **C ABI** (`libmdviewer`), vendored
   per-platform under `vendor/libmdviewer/` and currently **pinned at
-  v0.8.1** (see `scripts/fetch-libmdviewer.sh` and `vendor/checksums.txt`).
-  That repo is already at v0.10.1 with a native render tree — this app
-  does **not** consume the render tree yet; it renders HTML from the FFI
-  into a sandboxed webview. Bumping the pin is a deliberate future step,
-  not automatic.
+  v0.10.0** (see `scripts/fetch-libmdviewer.sh` and `vendor/checksums.txt`;
+  v0.10.1 is a Flutter-plugin-only release with no new native artifacts,
+  so v0.10.0 is the latest actual library binary). This app still only
+  uses the five ABI symbols it always has (`mdv_render`, `mdv_parse`,
+  `mdv_asset`, `mdv_free`, `mdv_version`) — it does **not** consume the
+  v0.10 native render tree (`mdv_render_tree*`) yet; it renders HTML from
+  the FFI into a sandboxed webview. Adopting the render tree (a bigger,
+  webview-to-native-widget architectural shift) is a deliberate future
+  step, not automatic.
 - **`~/Developer/OpenSource/MDViewer.Mobile`** — the Flutter sibling app,
   same design identity (`design/TOKENS.md` here is byte-identical to that
   repo's copy — keep them in sync), same rendering engine, different
@@ -72,6 +76,10 @@ Chronologically (see `git log --oneline`):
     (language label + Copy button, via the library's `codeHeader` option).
 11. Open-error surfacing, honest welcome-screen affordances, v1
     known-limitations documented in README.
+12. Bumped pinned libmdviewer to v0.10.0 (from v0.8.1) — checksums
+    re-verified against the release's published `SHA256SUMS`; no Rust or
+    frontend code changes needed since the five ABI symbols this app uses
+    are unchanged and append-only.
 
 Not yet built (present in the design spec but no commit history found
 implementing them yet): command palette (⌘K), preferences panel (⚙),

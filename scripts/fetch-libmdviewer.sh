@@ -6,7 +6,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-VERSION="0.8.1"
+VERSION="0.10.0"
 case "$(uname -s)-$(uname -m)" in
   Darwin-arm64)  host=darwin-arm64 ;;
   Darwin-x86_64) host=darwin-amd64 ;;

@@ -1,4 +1,4 @@
-//! Safe wrapper over the libmdviewer C ABI (v0.8.1).
+//! Safe wrapper over the libmdviewer C ABI (v0.10.0).
 //! Every out-buffer the library returns is copied into Rust memory and
 //! immediately released with mdv_free. All functions are thread-safe
 //! (library guarantee).
@@ -118,8 +118,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn version_reports_0_8_1() {
-        assert!(version().starts_with("0.8.1"), "got {}", version());
+    fn version_reports_0_10_0() {
+        assert!(version().starts_with("0.10.0"), "got {}", version());
     }
 
     #[test]
