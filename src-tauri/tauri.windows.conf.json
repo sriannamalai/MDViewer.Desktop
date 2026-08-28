@@ -1,0 +1,5 @@
+{
+  "bundle": {
+    "resources": ["../vendor/libmdviewer/windows-amd64/libmdviewer.dll"]
+  }
+}

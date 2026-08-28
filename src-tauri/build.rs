@@ -40,6 +40,7 @@ fn main() {
         }
         Ok("windows") => {
             ensure_msvc_import_lib(&vendor, &env::var("TARGET").unwrap());
+            copy_dll_for_runtime(&vendor);
         }
         _ => {}
     }
@@ -72,7 +73,18 @@ fn ensure_msvc_import_lib(vendor: &Path, rust_target: &str) {
     if env::var("CARGO_CFG_TARGET_ENV").as_deref() != Ok("msvc") {
         return; // GNU-toolchain Windows targets link against the bare .dll directly.
     }
-    let dll = vendor.join("mdviewer.dll");
+    // `libmdviewer`'s build-ffi.sh names every platform's artifact
+    // `libmdviewer.<ext>` (`libmdviewer.dylib`/`.so`/`.dll`) — but Rust's
+    // `rustc-link-lib=dylib=mdviewer` directive (above) asks MSVC's linker
+    // for exactly `mdviewer.lib`, with no `lib` prefix (Unix linkers
+    // auto-prepend `lib` for a bare `-l name`; MSVC's do not). The DLL to
+    // read exports from is still the real `libmdviewer.dll`; only the
+    // generated import library needs the prefix-less `mdviewer.lib` name
+    // Rust is going to look for. lib.exe's `.def` file controls the
+    // runtime-loaded module name independently of the `.lib`'s own
+    // filename on disk, so `mdviewer.lib` can correctly point at
+    // `libmdviewer.dll` at runtime — see the `LIBRARY` line below.
+    let dll = vendor.join("libmdviewer.dll");
     let lib = vendor.join("mdviewer.lib");
     if lib.exists() || !dll.exists() {
         // No .dll (or already generated): either the fetch script hasn't
@@ -107,7 +119,12 @@ fn ensure_msvc_import_lib(vendor: &Path, rust_target: &str) {
     }
 
     let def_path = vendor.join("mdviewer.def");
-    let mut def = String::from("LIBRARY mdviewer\nEXPORTS\n");
+    // `LIBRARY libmdviewer.dll` (not `mdviewer`/`mdviewer.dll`) is what
+    // actually matters here: it's embedded in the generated `.lib` as the
+    // module name the OS loader will request at runtime, and must match
+    // the real DLL's filename on disk regardless of what the `.lib` file
+    // itself is named.
+    let mut def = String::from("LIBRARY libmdviewer.dll\nEXPORTS\n");
     for name in &exports {
         def.push_str(name);
         def.push('\n');
@@ -128,6 +145,31 @@ fn ensure_msvc_import_lib(vendor: &Path, rust_target: &str) {
         panic!("lib.exe /DEF:{} failed", def_path.display());
     }
     println!("cargo:warning=generated {} from {} ({} exported symbols)", lib.display(), dll.display(), exports.len());
+}
+
+/// The generated `mdviewer.lib` above only satisfies the *linker*; at
+/// *runtime* Windows still needs to find `libmdviewer.dll` itself via its
+/// normal DLL search order (which checks the loading executable's own
+/// directory first — there's no Windows equivalent of an ELF/Mach-O rpath
+/// embeddable at link time the way macOS/Linux do it above). Copying the
+/// DLL next to every place cargo puts a binary that links against it
+/// covers `cargo build`/`cargo tauri dev` (`target/<profile>/`) and
+/// `cargo test` (`target/<profile>/deps/`); the packaged installer's copy
+/// is handled separately via `tauri.windows.conf.json`'s `bundle.resources`.
+fn copy_dll_for_runtime(vendor: &Path) {
+    let dll = vendor.join("libmdviewer.dll");
+    if !dll.exists() {
+        return;
+    }
+    // OUT_DIR is target/<profile>/build/<pkg>-<hash>/out; its great-great-
+    // grandparent is target/<profile>, where cargo places the main
+    // binary, and .../deps holds cargo test's own binaries.
+    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
+    let Some(profile_dir) = out_dir.ancestors().nth(3) else { return };
+    for dest_dir in [profile_dir.to_path_buf(), profile_dir.join("deps")] {
+        let _ = std::fs::create_dir_all(&dest_dir);
+        let _ = std::fs::copy(&dll, dest_dir.join("libmdviewer.dll"));
+    }
 }
 
 /// Parses `dumpbin /exports` output down to just the exported symbol
