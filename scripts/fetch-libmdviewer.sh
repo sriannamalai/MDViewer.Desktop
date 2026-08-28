@@ -6,7 +6,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-VERSION="0.10.0"
+VERSION="0.11.0"
 case "$(uname -s)-$(uname -m)" in
   Darwin-arm64)  host=darwin-arm64 ;;
   Darwin-x86_64) host=darwin-amd64 ;;
@@ -19,11 +19,6 @@ case "$(uname -s)-$(uname -m)" in
   MINGW*|MSYS*)  host=windows-amd64 ;;
   *) echo "unsupported host $(uname -s)-$(uname -m)" >&2; exit 1 ;;
 esac
-# windows-arm64 is accepted as an explicit target override (CI passes it
-# positionally) even though libmdviewer's own release-ffi.yml doesn't
-# publish that artifact yet — see scripts/update-checksums.sh and
-# AGENTS.md's known-limitations note. It will 404/checksum-fail until the
-# core library adds that target.
 target="${1:-$host}"
 zip="libmdviewer-${VERSION}-${target}.zip"
 dest="vendor/libmdviewer/${target}"

@@ -15,14 +15,17 @@ pixel-identical on every OS. 19 commits, version `0.1.0`, still pre-v1.
 - **`~/Developer/OpenSource/MarkDownViewer`** — the rendering engine this
   app embeds. Consumed here via the **C ABI** (`libmdviewer`), vendored
   per-platform under `vendor/libmdviewer/` and currently **pinned at
-  v0.10.0** (see `scripts/fetch-libmdviewer.sh` and `vendor/checksums.txt`;
-  v0.10.1 is a Flutter-plugin-only release with no new native artifacts,
-  so v0.10.0 is the latest actual library binary). This app uses six ABI
-  symbols now (`mdv_render`, `mdv_parse`, `mdv_asset`, `mdv_free`,
+  v0.11.0** (see `scripts/fetch-libmdviewer.sh` and `vendor/checksums.txt`,
+  now covering all six desktop targets including windows-arm64). This app
+  uses six ABI symbols (`mdv_render`, `mdv_parse`, `mdv_asset`, `mdv_free`,
   `mdv_version`, all via `mdv_render`'s options JSON growing `mermaid`/
   `math`/`allowRawHTML`/`fragment`/`extraCss` support for the Preferences
-  and Export sheet screens) — it does **not** consume the v0.10 native
-  render tree (`mdv_render_tree*`).
+  and Export sheet screens) — it does **not** consume the native render
+  tree (`mdv_render_tree*`), by design (see "Architectural specialization"
+  below). v0.11.0's library-side changes (CRLF highlighting fix, footnote
+  `DefID`/`FootnoteByIndex`, `mermaid-bridge.js`) are render-tree/native-host
+  primitives this app has no use for — its HTML output already highlights
+  CRLF fences and renders live interactive `mermaid.js` diagrams.
 - **`~/Developer/OpenSource/MDViewer.Mobile`** — the Flutter sibling app,
   same design identity (`design/TOKENS.md` here is byte-identical to that
   repo's copy — keep them in sync), same rendering engine, different
@@ -134,24 +137,17 @@ Chronologically (see `git log --oneline`):
     and a release pipeline mirroring `MarkDownViewer`'s
     matrix/package/checksum/upload/aggregate-SHA256SUMS strategy across
     macOS (arm64 + x86_64 cross-build), Linux (amd64 + arm64), and Windows
-    (amd64). See "Known limitations" for the two gaps this surfaced
-    (non-darwin checksums, Windows ARM64).
+    (amd64).
+16. **Bumped pinned libmdviewer to v0.11.0** (from v0.10.0) — checksums
+    re-verified against the release's published `SHA256SUMS`; no Rust or
+    frontend code changes needed (same six ABI symbols, unchanged and
+    append-only). Enabled the previously-gated `windows-arm64` release job
+    now that the core library ships that native artifact — Rust's MSVC
+    toolchain builds `aarch64-pc-windows-msvc` natively on the
+    `windows-11-arm` hosted runner without the cgo/mingw toolchain gap the
+    core library's Go build hit for the same target.
 
 ## Known limitations (v1, per README)
-- **`vendor/checksums.txt` only has real entries for darwin-arm64 and
-  darwin-amd64.** The release workflow's Linux/Windows jobs will fail at
-  the `fetch-libmdviewer.sh` step until someone with network access to
-  GitHub runs `scripts/update-checksums.sh linux-amd64 linux-arm64
-  windows-amd64` (added this pass) and commits the result — this
-  environment had no network access to `github.com` to do it directly.
-- **Windows ARM64 is not yet a real release target.** `build.rs` and
-  `scripts/fetch-libmdviewer.sh` accept a `windows-arm64` target
-  (forward-compatible), and `.github/workflows/release.yml` has a
-  `windows-arm64` job stubbed out and gated off (`if: false`), but there
-  is nothing to vendor: **`MarkDownViewer`'s own `release-ffi.yml` does
-  not publish a windows-arm64 native artifact at all yet** — this is an
-  upstream blocker in the core library's repo, not something fixable from
-  here. Flip the job on once that artifact (and a checksum for it) exist.
 - **Release binary embeds the dev vendor rpath** — harmless (bundle also
   resolves via `@executable_path/../Frameworks`) but not cleaned up.
 - **Mermaid/KaTeX combined-render verification is structural, not a
@@ -176,15 +172,15 @@ Chronologically (see `git log --oneline`):
   separate follow-up before turning this on.
 
 ## Next items (proposed, not yet planned in detail)
-1. Populate `vendor/checksums.txt` for linux-amd64/linux-arm64/
-   windows-amd64 (`scripts/update-checksums.sh`) so the release workflow
-   can actually run end-to-end; verify the workflow with a real tag.
-2. Wire the export sheet's Options checklist to real render toggles where
+1. Wire the export sheet's Options checklist to real render toggles where
    a corresponding library option exists.
-3. A real pixel-level Mermaid/KaTeX visual pass on the packaged `.app`
-   (see "Known limitations" above).
-4. Project-wide `cargo fmt` pass, then turn on a `fmt` CI job.
-5. Track the core library toward native-render-tree adoption for
+2. A real pixel-level Mermaid/KaTeX visual pass on the packaged `.app`
+   (see "Known limitations" above), and the same for the newly-enabled
+   `windows-arm64` release job (unverified by an actual tagged release
+   run as of this pass — the Rust/MSVC toolchain assumption should hold,
+   but treat the first real `windows-arm64` release build as a smoke test).
+3. Project-wide `cargo fmt` pass, then turn on a `fmt` CI job.
+4. Track the core library toward native-render-tree adoption for
    Desktop — **deliberately deprioritized**; see "Architectural
    specialization" above for why this isn't expected to happen absent a
    design change away from the current HTML/webview spec.

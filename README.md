@@ -16,7 +16,7 @@ The design targets a **frameless window with a custom-drawn titlebar** so the ap
 
 The app is a Tauri 2 shell (Rust + a small TypeScript frontend) over
 [`libmdviewer`](vendor/libmdviewer/darwin-arm64/README.md), a prebuilt C-shared
-library pinned at **v0.10.0** and vendored per-platform under `vendor/libmdviewer/`.
+library pinned at **v0.11.0** and vendored per-platform under `vendor/libmdviewer/`.
 
 ### Prerequisites
 
@@ -60,21 +60,13 @@ separately installed library required.
 `.github/workflows/ci.yml` builds the frontend and runs `cargo test`/
 `cargo clippy` on macOS/Linux/Windows for every push and pull request.
 `.github/workflows/release.yml` builds and packages the app for macOS
-(arm64 + x86_64), Linux (amd64 + arm64) and Windows (amd64) on every
-published GitHub release, uploading a checksummed zip per target plus an
-aggregated `SHA256SUMS`. See `AGENTS.md`'s "Known limitations" for the
-current gaps in that pipeline (missing non-darwin checksums, no Windows
-ARM64 target yet).
+(arm64 + x86_64), Linux (amd64 + arm64) and Windows (amd64 + arm64) on
+every published GitHub release, uploading a checksummed zip per target
+plus an aggregated `SHA256SUMS`. See `AGENTS.md`'s "Known limitations"
+for the current gaps in that pipeline.
 
 ## Known limitations (v1)
 
-- **`vendor/checksums.txt` only has verified entries for darwin-arm64 and
-  darwin-amd64.** The release workflow's Linux/Windows jobs need
-  `scripts/update-checksums.sh` run (from a machine with network access)
-  to populate the rest before they can succeed.
-- **No Windows ARM64 target yet.** `libmdviewer` itself doesn't publish a
-  windows-arm64 native artifact — this is an upstream dependency, not
-  something fixable from this repo alone.
 - **The release binary embeds the dev vendor rpath.** It's harmless (the
   bundle also resolves `libmdviewer` via `@executable_path/../Frameworks`
   and runs standalone), but cleaning the stale rpath out of the release

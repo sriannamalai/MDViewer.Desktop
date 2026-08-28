@@ -15,14 +15,9 @@ jobs:
   # runner, same approach MarkDownViewer's Go build uses for its own
   # darwin-amd64 job — no Intel macOS hosted runners exist anymore),
   # Linux amd64 + arm64 (both native, GitHub now hosts arm64 Linux
-  # runners), Windows amd64 (native).
-  #
-  # Windows ARM64 is intentionally NOT in this matrix yet — see the
-  # `windows-arm64` job below (kept for documentation, gated off) and
-  # AGENTS.md's known-limitations note: libmdviewer's own release-ffi.yml
-  # doesn't publish a windows-arm64 native artifact yet, so there is
-  # nothing for this app to vendor for that target regardless of Desktop's
-  # own CI readiness.
+  # runners), Windows amd64 (native). Windows arm64 is a separate job
+  # below (`windows-arm64`), now enabled since libmdviewer's v0.11.0
+  # release ships that native artifact.
   build:
     strategy:
       fail-fast: false
@@ -96,17 +91,14 @@ jobs:
           name: sha256-${{ matrix.artifact }}
           path: ${{ matrix.artifact }}.sha256
 
-  # Deliberately gated off (if: false) — see the `build` job's comment
-  # above. Flip this on once (a) libmdviewer publishes a windows-arm64 FFI
-  # artifact with a pinned checksum in vendor/checksums.txt (run
-  # scripts/update-checksums.sh windows-arm64 once that exists), and
-  # (b) a hosted windows-arm64 GitHub Actions runner (e.g. `windows-11-arm`)
-  # is available for this repo, or cross-compilation from windows-latest
-  # with the aarch64-pc-windows-msvc target + ARM64 MSVC toolchain
-  # component has been verified to produce a working WebView2-linked
-  # binary.
+  # Enabled as of libmdviewer v0.11.0 (the core library's release-ffi.yml
+  # now ships a windows-arm64 FFI artifact, and vendor/checksums.txt has a
+  # pinned checksum for it). Rust's MSVC toolchain compiles
+  # aarch64-pc-windows-msvc natively on windows-11-arm without the
+  # cgo/mingw toolchain issues the core library's Go build hit for the
+  # same target (see MarkDownViewer's release-ffi.yml history) — Rust's
+  # own codegen backend needs no separate GNU assembler.
   windows-arm64:
-    if: false
     runs-on: windows-11-arm
     defaults:
       run: {shell: bash}
@@ -140,7 +132,7 @@ jobs:
   # (standard `sha256sum` format, sorted by filename) and uploads it as a
   # release asset, so consumers can `sha256sum -c` their download.
   checksums:
-    needs: [build]
+    needs: [build, windows-arm64]
     runs-on: ubuntu-latest
     defaults:
       run: {shell: bash}
@@ -156,9 +148,9 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           cat sums/*.sha256 | LC_ALL=C sort -k2 > SHA256SUMS
-          # One line per shipped zip: 5 build-matrix targets today. A
-          # mismatch means a job stopped uploading its checksum — fail
+          # One line per shipped zip: 5 build-matrix targets + windows-arm64.
+          # A mismatch means a job stopped uploading its checksum — fail
           # loudly rather than publish a partial file.
-          test "$(wc -l < SHA256SUMS)" -eq 5
+          test "$(wc -l < SHA256SUMS)" -eq 6
           cat SHA256SUMS
           gh release upload "$TAG" SHA256SUMS --clobber

@@ -71,11 +71,15 @@ grouped under `[Unreleased]`; see `AGENTS.md` for the current pinned
 
 ### Changed
 
-- Bumped the pinned `libmdviewer` from v0.5.0 → v0.8.1 → v0.10.0 as the
-  core library shipped new releases; v0.10.0 added the native render
-  tree, which this app deliberately does not consume (see AGENTS.md's
-  "Architectural specialization" note) — it stays on the HTML/webview
-  pipeline by design.
+- Bumped the pinned `libmdviewer` from v0.5.0 → v0.8.1 → v0.10.0 →
+  v0.11.0 as the core library shipped new releases; v0.10.0 added the
+  native render tree, which this app deliberately does not consume (see
+  AGENTS.md's "Architectural specialization" note) — it stays on the
+  HTML/webview pipeline by design. v0.11.0's library-side changes (CRLF
+  highlighting fix, footnote jump-to-definition primitive, a Mermaid
+  offscreen-render asset) are render-tree/native-host primitives this
+  app has no use for. Enabled the previously-gated `windows-arm64`
+  release job now that the core library publishes that native artifact.
 
 ### Fixed
 

@@ -12,18 +12,13 @@
 # target has no pinned checksum yet.
 #
 # Usage:
-#   scripts/update-checksums.sh darwin-arm64 darwin-amd64 linux-amd64 linux-arm64 windows-amd64
-#
-# windows-arm64 is deliberately not in the default target list below:
-# libmdviewer's own release-ffi.yml doesn't publish that artifact yet (see
-# AGENTS.md's known-limitations note), so there is nothing to checksum
-# until the core library adds it.
+#   scripts/update-checksums.sh darwin-arm64 darwin-amd64 linux-amd64 linux-arm64 windows-amd64 windows-arm64
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-VERSION="0.10.0"
+VERSION="0.11.0"
 CHECKSUMS="vendor/checksums.txt"
-DEFAULT_TARGETS=(darwin-arm64 darwin-amd64 linux-amd64 linux-arm64 windows-amd64)
+DEFAULT_TARGETS=(darwin-arm64 darwin-amd64 linux-amd64 linux-arm64 windows-amd64 windows-arm64)
 targets=("${@:-${DEFAULT_TARGETS[@]}}")
 
 sha256_of() {

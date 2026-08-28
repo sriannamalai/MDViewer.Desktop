@@ -1,5 +1,6 @@
-920fb41b7e76e60f5f84867fc54b4b912d024fb637bee4b20d2f558350381a03  libmdviewer-0.10.0-darwin-amd64.zip
-806cdbf3944df98690b10cc82e493e8bf5b2fb303d8c46faa674734144ff585b  libmdviewer-0.10.0-darwin-arm64.zip
-4390288e7fdd8bb34278b635ff52df73b1ceeb7a375738bf49ab131182294427  libmdviewer-0.10.0-linux-amd64.zip
-b758b10a08f178208b9fcaa5d41968ae87fa5ce69dd1842d244199db800b549a  libmdviewer-0.10.0-linux-arm64.zip
-37d48711d42f31b4e01dafd363c2451ce255d246f2b105b850128ad3bd06a209  libmdviewer-0.10.0-windows-amd64.zip
+32939fd02b65ffa4884efd3afce8dedaba52a42d243f3f31bd0b495f8cb85c3e  libmdviewer-0.11.0-darwin-amd64.zip
+0b4c804c6e049f7b58a0e2c41d27243a2ea2f890223314ee219c6baf10f3aa26  libmdviewer-0.11.0-darwin-arm64.zip
+45df8d8e28db61bd991542de04c8bc9119908abcbd41804a15468dc62e31f057  libmdviewer-0.11.0-linux-amd64.zip
+9077b25ec85cbf36811ffe50d3aed2984c1359bef4efc1a8e5d0c22752d6c0fb  libmdviewer-0.11.0-linux-arm64.zip
+9dd6cfb75dc8bbd1aea459ffd37875d110e38656a7158c988c9888b512d603ea  libmdviewer-0.11.0-windows-amd64.zip
+67db49472f93f9871803884baac842a11cea03007c48a3703ed2379dc4c1de9e  libmdviewer-0.11.0-windows-arm64.zip
