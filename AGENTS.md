@@ -59,6 +59,25 @@ deliberately kept, not a gap to close:
   drops the webview-based design spec entirely). Item 5 under "Next
   items" below is intentionally the lowest priority for this reason.
 
+### Engine version sync checklist
+Run this on every core library release (MarkDownViewer's own `AGENTS.md`
+keeps the authoritative copy of this list — update both if it changes):
+1. Check the library's `CHANGELOG.md` for the new `v<ver>` tag and what
+   changed (new ABI symbols, options-JSON fields, breaking changes).
+2. Bump the pinned version in `scripts/fetch-libmdviewer.sh` /
+   `vendor/checksums.txt`, re-run the fetch script, and verify checksums
+   against the release's published `SHA256SUMS`.
+3. Confirm the ABI symbols this app uses are unchanged/append-only; if a
+   new options-JSON field is relevant to Preferences/Export, wire it in.
+4. Run `cargo test` and the frontend build (`cd frontend && npm run
+   build`) to confirm the new pin doesn't regress anything.
+5. Update this file's "Finished so far" section with what actually
+   shipped on the Desktop side, and confirm the sibling repos' `AGENTS.md`
+   files were updated too (Mobile's submodule pin + its own checklist;
+   the library's "Finished so far").
+Current pinned version: C ABI `libmdviewer` **v0.11.0**, HTML/webview
+rendering only (no native render tree, by design — see above).
+
 ## Architecture
 - **`src-tauri/`** (Rust): `main.rs`/`lib.rs` (app entry, Tauri builder),
   `app.rs` (window/app setup), `ffi.rs` (safe Rust wrapper over the C ABI —
