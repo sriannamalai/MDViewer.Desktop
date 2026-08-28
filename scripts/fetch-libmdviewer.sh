@@ -40,7 +40,11 @@ fi
 mkdir -p vendor/tmp "${dest}"
 url="https://github.com/sriannamalai/markdownviewer/releases/download/v${VERSION}/${zip}"
 curl -fL --retry 3 -o "vendor/tmp/${zip}" "$url"
-actual="$(shasum -a 256 "vendor/tmp/${zip}" | awk '{print $1}')"
+if command -v sha256sum >/dev/null; then
+  actual="$(sha256sum "vendor/tmp/${zip}" | awk '{print $1}')"
+else
+  actual="$(shasum -a 256 "vendor/tmp/${zip}" | awk '{print $1}')"
+fi
 if [ "$actual" != "$expected" ]; then
   echo "checksum mismatch for ${zip}: got ${actual} want ${expected}" >&2; exit 1
 fi
