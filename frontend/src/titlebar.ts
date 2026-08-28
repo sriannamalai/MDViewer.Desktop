@@ -13,15 +13,19 @@
 // module only wires the titlebar buttons that are still purely local.
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
-export function initTitlebar(): void {
+export interface TitlebarCallbacks {
+  /** Search pill click — opens the command palette (design §1/§8). */
+  onOpenCommandPalette(): void;
+  /** ⚙ click — opens the Preferences overlay (design §9). */
+  onOpenPreferences(): void;
+}
+
+export function initTitlebar(cb: TitlebarCallbacks): void {
   const win = getCurrentWindow();
 
-  // Search pill: static in v1 (no command palette yet) — intentionally a
-  // no-op click per the task brief.
-  document.getElementById("titlebar-search")?.addEventListener("click", () => {});
+  document.getElementById("titlebar-search")?.addEventListener("click", () => cb.onOpenCommandPalette());
 
-  // Settings: disabled/no-op in v1 — Preferences overlay isn't built yet.
-  document.getElementById("settings-btn")?.addEventListener("click", () => {});
+  document.getElementById("settings-btn")?.addEventListener("click", () => cb.onOpenPreferences());
 
   document.getElementById("win-minimize")?.addEventListener("click", () => {
     void win.minimize();

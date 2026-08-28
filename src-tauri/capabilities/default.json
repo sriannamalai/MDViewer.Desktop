@@ -1,13 +1,15 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Baseline window permissions for the frameless, custom-drawn titlebar (design/README.md §1): minimize/toggleMaximize/close are IPC commands and, unlike the drag region, are ACL-gated. Scoped to exactly what titlebar.ts calls — allow-maximize/allow-unmaximize are separate commands the frontend never invokes (it only calls toggleMaximize()) and are deliberately omitted. `dialog:allow-open` is scoped the same way for welcome.ts/tabs.ts's file/folder pickers — they only ever call the plugin's `open()`, never `save()` or the message/ask dialogs, so `dialog:default` (which grants all of those) is deliberately not used.",
+  "description": "Baseline window permissions for the frameless, custom-drawn titlebar (design/README.md §1): minimize/toggleMaximize/close are IPC commands and, unlike the drag region, are ACL-gated. Scoped to exactly what titlebar.ts calls — allow-maximize/allow-unmaximize are separate commands the frontend never invokes (it only calls toggleMaximize()) and are deliberately omitted. `dialog:allow-open` is scoped the same way for welcome.ts/tabs.ts's file/folder pickers — they only ever call the plugin's `open()`, never the message/ask dialogs. `dialog:allow-save` is exportsheet.ts's destination picker (design §10). `opener:allow-open-url` is viewer.ts's gated external-link bridge — the sandboxed document iframe has no allow-top-navigation/allow-popups of its own, so this is the only way an external link can ever open, and only via an explicit postMessage from a real click.",
   "windows": ["main"],
   "permissions": [
     "core:default",
     "core:window:allow-minimize",
     "core:window:allow-toggle-maximize",
     "core:window:allow-close",
-    "dialog:allow-open"
+    "dialog:allow-open",
+    "dialog:allow-save",
+    "opener:allow-open-url"
   ]
 }

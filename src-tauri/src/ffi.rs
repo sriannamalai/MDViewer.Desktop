@@ -13,7 +13,7 @@ impl fmt::Display for FfiError {
 }
 impl std::error::Error for FfiError {}
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct RenderOptions {
     pub theme: String,
     pub source_map: bool,
@@ -22,6 +22,38 @@ pub struct RenderOptions {
     /// libraries rejects the key, so only emit it when set.
     pub code_header: bool,
     pub theme_overrides: BTreeMap<String, String>,
+    /// Preferences panel "Render math and diagrams" (design §9) — library
+    /// default is `true` for both, so these only need to appear in the
+    /// emitted JSON when *disabled*.
+    pub mermaid: bool,
+    pub math: bool,
+    /// Preferences panel "Allow raw HTML" (design §9) — library default is
+    /// `false`; only emitted when enabled.
+    pub allow_raw_html: bool,
+    /// Export sheet's "HTML fragment" format (design §10) — body-only
+    /// output, no `<html>`/`<head>` wrapper or embedded assets.
+    pub fragment: bool,
+    /// Preferences panel "Prose typeface" (design §9) — appended verbatim
+    /// (sanitized by the library) after the base stylesheet, so it can
+    /// override the default sans-serif prose font with the bundled serif
+    /// typeface.
+    pub extra_css: Option<String>,
+}
+
+impl Default for RenderOptions {
+    fn default() -> Self {
+        RenderOptions {
+            theme: String::new(),
+            source_map: false,
+            code_header: false,
+            theme_overrides: BTreeMap::new(),
+            mermaid: true,
+            math: true,
+            allow_raw_html: false,
+            fragment: false,
+            extra_css: None,
+        }
+    }
 }
 
 impl RenderOptions {
@@ -43,6 +75,23 @@ impl RenderOptions {
                 "themeOverrides".into(),
                 serde_json::to_value(&self.theme_overrides).unwrap(),
             );
+        }
+        if !self.mermaid {
+            obj.insert("mermaid".into(), false.into());
+        }
+        if !self.math {
+            obj.insert("math".into(), false.into());
+        }
+        if self.allow_raw_html {
+            obj.insert("allowRawHTML".into(), true.into());
+        }
+        if self.fragment {
+            obj.insert("fragment".into(), true.into());
+        }
+        if let Some(css) = &self.extra_css
+            && !css.is_empty()
+        {
+            obj.insert("extraCss".into(), css.clone().into());
         }
         serde_json::Value::Object(obj).to_string()
     }
@@ -147,12 +196,16 @@ mod tests {
         // unknown fields. Serialize and assert only documented keys.
         let opts = RenderOptions { theme: "light".into(), source_map: true,
             code_header: true,
-            theme_overrides: [("--md-bg".to_string(), "#fff".to_string())].into() };
+            theme_overrides: [("--md-bg".to_string(), "#fff".to_string())].into(),
+            ..Default::default() };
         let json = opts.to_json();
         for key in ["\"theme\"", "\"sourceMap\"", "\"codeHeader\"", "\"themeOverrides\""] {
             assert!(json.contains(key), "{json}");
         }
         assert!(!json.contains("\"fragment\""), "must omit defaults: {json}");
+        assert!(!json.contains("\"mermaid\""), "must omit library-default mermaid:true: {json}");
+        assert!(!json.contains("\"math\""), "must omit library-default math:true: {json}");
+        assert!(!json.contains("\"allowRawHTML\""), "must omit library-default allowRawHTML:false: {json}");
     }
 
     #[test]

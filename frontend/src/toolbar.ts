@@ -14,6 +14,7 @@ export interface ToolbarStats {
 export interface ToolbarCallbacks {
   onToggleOutline(): void;
   onToggleSource(): void;
+  onExport(): void;
 }
 
 /** The Explorer's tree root — `null` when no folder is open. */
@@ -94,8 +95,7 @@ export function render(
     cb.onToggleSource(),
   );
 
-  // Inert per the task brief — no export flow yet (v2).
-  const exportBtn = buildButton("Export", "", "Export — coming in v2", () => {});
+  const exportBtn = buildButton("Export", "", null, () => cb.onExport());
 
   container.append(breadcrumb, spacer, statsEl, divider, outlineBtn, sourceBtn, exportBtn);
 }

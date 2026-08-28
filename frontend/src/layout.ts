@@ -18,7 +18,7 @@
 // mounts; this module never touches their innerHTML.
 
 export type LayoutMode = "workbench" | "reader";
-export type RailPanel = "files" | "outline";
+export type RailPanel = "files" | "search" | "outline";
 
 export interface LayoutState {
   sidebarOpen: boolean;
@@ -52,6 +52,8 @@ export interface InitOptions {
   onOpenFolderShortcut(): void;
   /** ⌘⇧L / Ctrl⇧L (welcome screen's Shortcuts column, Finding 2) — main.ts's own theme-toggle flow. */
   onToggleThemeShortcut(): void;
+  /** ⌘K / Ctrl+K (design §8, titlebar search pill) — main.ts's command-palette-open flow. */
+  onCommandPaletteShortcut(): void;
 }
 
 interface Elements {
@@ -66,10 +68,12 @@ interface Elements {
    * ruled it inert for v1 (design §3's sidebar-hosted outline panel isn't
    * built, and §2's "only one icon lights up" contract must hold with
    * only Files as a real toggle). It keeps its own static "coming in v2"
-   * title in index.html, same as Search/Export; the outline *column*
-   * stays reachable via the doc toolbar's Outline button and ⌘J.
+   * title in index.html, same as Export; the outline *column* stays
+   * reachable via the doc toolbar's Outline button and ⌘J.
    */
   railFiles: HTMLElement | null;
+  /** Search sidebar panel (design §3) — the second genuine rail toggle, alongside Files. */
+  railSearch: HTMLElement | null;
   layoutGlyph: HTMLElement | null;
   layoutLabel: HTMLElement | null;
   overlay: HTMLElement | null;
@@ -81,6 +85,7 @@ let onChange: (state: LayoutState) => void = () => {};
 let renderWelcomeOverlay: (host: HTMLElement) => void = () => {};
 let onOpenFolderShortcut: () => void = () => {};
 let onToggleThemeShortcut: () => void = () => {};
+let onCommandPaletteShortcut: () => void = () => {};
 
 let state: LayoutState = {
   sidebarOpen: true,
@@ -150,7 +155,8 @@ function paint(): void {
   el.sidebarHandle.classList.toggle("dragging", dragging === "sidebar");
   el.outlineHandle.classList.toggle("dragging", dragging === "outline");
 
-  el.railFiles?.classList.toggle("active", sbOpen);
+  el.railFiles?.classList.toggle("active", sbOpen && state.activePanel === "files");
+  el.railSearch?.classList.toggle("active", sbOpen && state.activePanel === "search");
 
   const reader = state.layout === "reader";
   document.documentElement.dataset.layout = state.layout;
@@ -180,17 +186,19 @@ export function setOutlineOpen(open: boolean): void {
 }
 
 /**
- * Rail Files icon click (design §2) — the only live rail-panel toggle in
- * v1 (Outline is ruled inert; see the `railFiles` field's doc comment
- * above). Clicking it while the sidebar is already open+active closes it;
- * otherwise opens it. Always returns to Workbench — picking it while in
- * Reader exits reader mode (matches design/reference's `pick()`).
+ * Rail Files/Search icon click (design §2) — the two live rail-panel
+ * toggles in v1 (Outline is ruled inert; see the `railFiles` field's doc
+ * comment above). Clicking a panel's icon while the sidebar is already
+ * open on *that* panel closes it; clicking it while closed, or while open
+ * on the *other* panel, opens/switches to it. Always returns to
+ * Workbench — picking a panel while in Reader exits reader mode (matches
+ * design/reference's `pick()`).
  */
-export function pickFilesPanel(): void {
+export function pickPanel(panel: "files" | "search"): void {
   const openNow = effectiveSidebarOpen();
-  const wasActive = state.activePanel === "files";
+  const wasActive = state.activePanel === panel;
   const nextOpen = !(openNow && wasActive);
-  commit({ activePanel: "files", layout: "workbench", sidebarOpen: nextOpen });
+  commit({ activePanel: panel, layout: "workbench", sidebarOpen: nextOpen });
 }
 
 /** Doc toolbar's "Outline" button — also forces Workbench (design/reference's `toggleOutline`), so it doubles as "leave reader and show the outline". */
@@ -261,19 +269,31 @@ export function startDrag(which: "sidebar" | "outline", ev: MouseEvent): void {
   document.body.style.userSelect = "none";
 }
 
-// ------------------------------------------------- Overlay (welcome-over-doc)
+// ---------------------------------------------------------------- Overlay
+//
+// One shared veil/host (design "State management": `overlay`
+// (none/palette/settings/export/welcome)) — main.ts (and this module's own
+// Home-button flow) each supply a render function for whatever content
+// should fill it; this module only owns show/hide + veil-click/Esc
+// dismissal, identically for every overlay kind.
+
+/** Renders `render`'s content into the shared overlay host and shows the veil. Generic entry point used by the command palette/preferences/export sheet as well as the welcome-over-doc overlay below. */
+export function openOverlay(render: (host: HTMLElement) => void): void {
+  if (!el.overlayContent) return;
+  render(el.overlayContent);
+  overlayOpen = true;
+  paint();
+}
 
 /** Rail Home button (design §2/§11) — shows the welcome content as a dismissible veil over whatever's already open, without touching main.ts's document store. */
 export function openWelcomeOverlay(): void {
-  if (!el.overlayContent) return;
-  renderWelcomeOverlay(el.overlayContent);
-  overlayOpen = true;
-  paint();
+  openOverlay(renderWelcomeOverlay);
 }
 
 export function closeOverlay(): void {
   if (!overlayOpen) return;
   overlayOpen = false;
+  if (el.overlayContent) el.overlayContent.innerHTML = ""; // drop the previous overlay's DOM/listeners rather than leaving it mounted-but-hidden
   paint();
 }
 
@@ -320,6 +340,9 @@ function onKeydown(ev: KeyboardEvent): void {
   } else if (isPrimaryModifier(ev) && ev.shiftKey && key === "l") {
     ev.preventDefault();
     onToggleThemeShortcut();
+  } else if (isPrimaryModifier(ev) && key === "k") {
+    ev.preventDefault();
+    onCommandPaletteShortcut();
   }
 }
 
@@ -334,6 +357,7 @@ export function init(opts: InitOptions): void {
     sidebarHandle: requireEl("sidebar-handle"),
     outlineHandle: requireEl("outline-handle"),
     railFiles: document.getElementById("rail-files"),
+    railSearch: document.getElementById("rail-search"),
     layoutGlyph: document.getElementById("layout-glyph"),
     layoutLabel: document.getElementById("layout-label"),
     overlay: document.getElementById("overlay"),
@@ -344,6 +368,7 @@ export function init(opts: InitOptions): void {
   renderWelcomeOverlay = opts.renderWelcomeOverlay;
   onOpenFolderShortcut = opts.onOpenFolderShortcut;
   onToggleThemeShortcut = opts.onToggleThemeShortcut;
+  onCommandPaletteShortcut = opts.onCommandPaletteShortcut;
 
   state = {
     sidebarOpen: opts.initial.sidebarOpen ?? state.sidebarOpen,
@@ -362,7 +387,8 @@ export function init(opts: InitOptions): void {
   // Rail Outline is inert for v1 (controller ruling) — no click wiring, no
   // "active" paint; the right-hand outline column stays reachable via the
   // doc toolbar's Outline button (toggleOutline()) and ⌘J.
-  el.railFiles?.addEventListener("click", () => pickFilesPanel());
+  el.railFiles?.addEventListener("click", () => pickPanel("files"));
+  el.railSearch?.addEventListener("click", () => pickPanel("search"));
   document.getElementById("layout-toggle")?.addEventListener("click", () => toggleReaderMode());
 
   el.overlay?.addEventListener("click", (ev) => {

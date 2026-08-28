@@ -12,9 +12,18 @@ case "$(uname -s)-$(uname -m)" in
   Darwin-x86_64) host=darwin-amd64 ;;
   Linux-x86_64)  host=linux-amd64 ;;
   Linux-aarch64) host=linux-arm64 ;;
+  # ARM64 host detection under Git Bash/MSYS varies by build ("ARM64" or
+  # "aarch64"); windows-amd64 stays the MINGW*/MSYS* default since that's
+  # by far the common case.
+  MINGW*-ARM64|MINGW*-aarch64|MSYS*-ARM64|MSYS*-aarch64) host=windows-arm64 ;;
   MINGW*|MSYS*)  host=windows-amd64 ;;
   *) echo "unsupported host $(uname -s)-$(uname -m)" >&2; exit 1 ;;
 esac
+# windows-arm64 is accepted as an explicit target override (CI passes it
+# positionally) even though libmdviewer's own release-ffi.yml doesn't
+# publish that artifact yet — see scripts/update-checksums.sh and
+# AGENTS.md's known-limitations note. It will 404/checksum-fail until the
+# core library adds that target.
 target="${1:-$host}"
 zip="libmdviewer-${VERSION}-${target}.zip"
 dest="vendor/libmdviewer/${target}"
@@ -31,7 +40,11 @@ fi
 mkdir -p vendor/tmp "${dest}"
 url="https://github.com/sriannamalai/markdownviewer/releases/download/v${VERSION}/${zip}"
 curl -fL --retry 3 -o "vendor/tmp/${zip}" "$url"
-actual="$(shasum -a 256 "vendor/tmp/${zip}" | awk '{print $1}')"
+if command -v sha256sum >/dev/null; then
+  actual="$(sha256sum "vendor/tmp/${zip}" | awk '{print $1}')"
+else
+  actual="$(shasum -a 256 "vendor/tmp/${zip}" | awk '{print $1}')"
+fi
 if [ "$actual" != "$expected" ]; then
   echo "checksum mismatch for ${zip}: got ${actual} want ${expected}" >&2; exit 1
 fi

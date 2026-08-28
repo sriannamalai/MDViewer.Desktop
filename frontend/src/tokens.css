@@ -52,6 +52,18 @@
   --t-radius-block: 8px;
   --t-radius-control: 7px;
   --t-radius-badge: 4px;
+
+  /* Preferences §9 "Reading width" — side margin of the prose column;
+     overridden per html[data-reading-width] below. Medium (the design's
+     documented 10%) needs no override rule since it's this default. */
+  --t-content-side: 10%;
+}
+
+html[data-reading-width="narrow"] {
+  --t-content-side: 18%;
+}
+html[data-reading-width="wide"] {
+  --t-content-side: 4%;
 }
 
 :root[data-theme="light"] {

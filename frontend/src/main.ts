@@ -2,7 +2,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { initTitlebar } from "./titlebar";
 import { initRail } from "./rail";
-import { initTheme, getTheme } from "./theme";
+import { initTheme, getTheme, setTheme, resolveThemeMode, watchAutoTheme, unwatchAutoTheme } from "./theme";
 import * as layout from "./layout";
 import * as appstate from "./appstate";
 import * as ipc from "./ipc";
@@ -14,6 +14,11 @@ import * as welcomeUi from "./welcome";
 import * as outlineUi from "./outline";
 import * as toolbarUi from "./toolbar";
 import * as statusbarUi from "./statusbar";
+import * as searchUi from "./search";
+import * as commandPaletteUi from "./commandpalette";
+import type { PaletteCommand } from "./commandpalette";
+import * as preferencesUi from "./preferences";
+import * as exportSheetUi from "./exportsheet";
 
 // Document pipeline — design/README.md §3 (Explorer), §5 (tab strip, doc
 // toolbar, status bar), §6 (outline column), §11 (welcome). This module
@@ -135,7 +140,7 @@ async function showTab(tab: OpenTab): Promise<void> {
   try {
     let html = tab.html[theme];
     if (!html) {
-      html = await ipc.renderDocument(tab.content, theme);
+      html = await ipc.renderDocument(tab.content, theme, currentRenderPrefs());
       tab.html[theme] = html;
     }
     if (!tab.doc) {
@@ -194,6 +199,7 @@ function renderToolbar(tab: OpenTab): void {
   toolbarUi.render(toolbarEl, tab.path, root, { lines: tab.lines, bytes: tab.bytes }, layout.isOutlineOpen(), tab.sourceView, {
     onToggleOutline: () => layout.toggleOutline(),
     onToggleSource: () => toggleSourceView(tab),
+    onExport: () => openExportOverlay(),
   });
 }
 
@@ -254,12 +260,28 @@ function paintChrome(): void {
     });
   }
 
-  explorerUi.render(sidebarInnerEl!, store.treeRoot, store.activeTab, explorerRecents(), {
-    onOpenFile: (path) => {
-      void openFile(path);
-    },
-    onCollapse: () => layout.setSidebarOpen(false),
-  });
+  if (layout.getState().activePanel === "search") {
+    searchUi.render(sidebarInnerEl!, store.treeRoot?.path ?? null, {
+      onOpenMatch: (path, line) => {
+        void openSearchMatch(path, line);
+      },
+    });
+  } else {
+    explorerUi.render(sidebarInnerEl!, store.treeRoot, store.activeTab, explorerRecents(), {
+      onOpenFile: (path) => {
+        void openFile(path);
+      },
+      onCollapse: () => layout.setSidebarOpen(false),
+    });
+  }
+}
+
+/** Search result row click (design §3) — opens the file (reusing an already-open tab) then scrolls the *rendered* view to the match's line. A short delay is needed when the tab was just opened: the iframe's srcdoc assignment in viewer.ts is synchronous but the scrollspy script inside it needs a paint to attach its message listener, so scrollToLine() posted immediately after showTab() resolves can arrive before anyone is listening. */
+async function openSearchMatch(path: string, line: number): Promise<void> {
+  const wasAlreadyOpen = store.openTabs.some((t) => t.path === path) && store.activeTab === path;
+  await openFile(path);
+  const delay = wasAlreadyOpen ? 0 : 120;
+  window.setTimeout(() => viewer.scrollToLine(line), delay);
 }
 
 /** `path/to/file.md` → `to/file.md` — last two path segments, matching design/reference's own "Recent" row style (e.g. "notes/2026-08-04.md"). */
@@ -454,11 +476,164 @@ function onLayoutChange(s: layout.LayoutState): void {
   }
 }
 
+/** Builds the ffi::RenderPrefs the Rust side expects from the current persisted Preferences. */
+function currentRenderPrefs(): ipc.RenderPrefs {
+  const p = appstate.getState().prefs;
+  return {
+    mermaid: p.renderMathDiagrams,
+    math: p.renderMathDiagrams,
+    allow_raw_html: p.allowRawHtml,
+    prose_typeface: p.proseTypeface,
+  };
+}
+
+/** Drops every open tab's cached-per-theme HTML — called whenever a rendering-relevant preference changes, so the next showTab() re-renders under the new prefs instead of serving a stale cache hit keyed only by theme. */
+function invalidateRenderCaches(): void {
+  for (const tab of store.openTabs) tab.html = {};
+}
+
+/** Re-renders the active tab (if any) — the common tail of every rendering-relevant preference change. */
+async function rerenderActiveTab(): Promise<void> {
+  const tab = store.openTabs.find((t) => t.path === store.activeTab);
+  if (tab) await showTab(tab);
+}
+
+function overlayContentHost(): HTMLElement | null {
+  return document.getElementById("overlay-content");
+}
+
+function preferencesCallbacks(): preferencesUi.PreferencesCallbacks {
+  return {
+    onThemeMode: (mode) => {
+      appstate.updatePrefs({ themeMode: mode });
+      const resolved = resolveThemeMode(mode);
+      setTheme(resolved);
+      appstate.update({ theme: resolved });
+      if (mode === "auto") {
+        watchAutoTheme((t) => {
+          setTheme(t);
+          appstate.update({ theme: t });
+          void onThemeChanged();
+        });
+      } else {
+        unwatchAutoTheme();
+      }
+      void onThemeChanged();
+      refreshPreferences();
+    },
+    onReadingWidth: (width) => {
+      appstate.updatePrefs({ readingWidth: width });
+      document.documentElement.dataset.readingWidth = width;
+      refreshPreferences();
+    },
+    onProseTypeface: (typeface) => {
+      appstate.updatePrefs({ proseTypeface: typeface });
+      invalidateRenderCaches();
+      void rerenderActiveTab();
+      refreshPreferences();
+    },
+    onRenderMathDiagrams: (on) => {
+      appstate.updatePrefs({ renderMathDiagrams: on });
+      invalidateRenderCaches();
+      void rerenderActiveTab();
+      refreshPreferences();
+    },
+    onAllowRawHtml: (on) => {
+      appstate.updatePrefs({ allowRawHtml: on });
+      invalidateRenderCaches();
+      void rerenderActiveTab();
+      refreshPreferences();
+    },
+    onClose: () => layout.closeOverlay(),
+  };
+}
+
+function refreshPreferences(): void {
+  const host = overlayContentHost();
+  if (host && layout.isOverlayOpen()) preferencesUi.refresh(host, appstate.getState().prefs, preferencesCallbacks());
+}
+
+function openPreferencesOverlay(): void {
+  layout.openOverlay((host) => preferencesUi.mount(host, appstate.getState().prefs, preferencesCallbacks()));
+}
+
+/** Rail Export / doc-toolbar Export button (design §10) — no-ops with an inline error when there's nothing open to export, rather than opening an empty sheet. */
+function openExportOverlay(): void {
+  const tab = store.openTabs.find((t) => t.path === store.activeTab);
+  if (!tab) {
+    showOpenError("Open a document before exporting.");
+    return;
+  }
+  layout.openOverlay((host) =>
+    exportSheetUi.mount(host, tab.name, getTheme(), {
+      onClose: () => layout.closeOverlay(),
+      renderExport: (fragment) => ipc.exportDocument(tab.content, getTheme(), fragment, currentRenderPrefs()),
+      onError: (message) => showOpenError(`Export failed — ${message}`),
+    }),
+  );
+}
+
+/** Command palette's command list (design §8) — thin wrappers around actions this module and layout.ts already expose elsewhere (titlebar/rail/toolbar buttons, keyboard shortcuts). Built fresh on every open so it always reflects the current active tab/state. */
+function buildPaletteCommands(): PaletteCommand[] {
+  const activeTab = () => store.openTabs.find((t) => t.path === store.activeTab);
+  return [
+    {
+      id: "toggle-theme",
+      icon: "◐",
+      label: "Toggle theme",
+      shortcut: "⌘⇧L",
+      run: () => document.getElementById("theme-toggle")?.click(),
+    },
+    {
+      id: "toggle-sidebar",
+      icon: "▤",
+      label: "Toggle sidebar",
+      shortcut: "⌘B",
+      run: () => layout.setSidebarOpen(!layout.isSidebarOpen()),
+    },
+    { id: "toggle-outline", icon: "☰", label: "Toggle outline", shortcut: "⌘J", run: () => layout.toggleOutline() },
+    { id: "toggle-layout", icon: "▥", label: "Toggle layout (Workbench/Reader)", run: () => layout.toggleReaderMode() },
+    {
+      id: "toggle-source",
+      icon: "{ }",
+      label: "View Markdown source",
+      run: () => {
+        const tab = activeTab();
+        if (tab) toggleSourceView(tab);
+      },
+    },
+    { id: "open-file", icon: "＋", label: "Open file…", run: () => void pickAndOpenFile() },
+    { id: "open-folder", icon: "⌂", label: "Open folder…", shortcut: "⌘⇧O", run: () => void pickAndOpenFolder() },
+    { id: "search", icon: "⌕", label: "Search across vault", run: () => layout.pickPanel("search") },
+    { id: "preferences", icon: "⚙", label: "Open preferences", run: () => openPreferencesOverlay() },
+    { id: "export", icon: "⇪", label: "Export…", run: () => openExportOverlay() },
+  ];
+}
+
+function openCommandPalette(): void {
+  layout.openOverlay((host) =>
+    commandPaletteUi.mount(host, buildPaletteCommands(), { onClose: () => layout.closeOverlay() }),
+  );
+}
+
 /** Boots the app: restores persisted UI state *before* the first paint (no flash of default widths/theme), then wires the rest of the chrome. */
 async function boot(): Promise<void> {
   const persisted = await appstate.load();
 
-  initTheme(persisted.theme);
+  // Preferences §9 "Auto" resolves against the OS preference at boot, same
+  // as any other theme pick, then keeps watching for OS changes for as
+  // long as the mode stays "auto".
+  const bootTheme = resolveThemeMode(persisted.prefs.themeMode);
+  initTheme(bootTheme);
+  if (persisted.prefs.themeMode === "auto") {
+    watchAutoTheme((t) => {
+      setTheme(t);
+      appstate.update({ theme: t });
+      void onThemeChanged();
+    });
+  }
+  document.documentElement.dataset.readingWidth = persisted.prefs.readingWidth;
+
   layout.init({
     initial: {
       sidebarOpen: persisted.sidebarOpen,
@@ -466,7 +641,8 @@ async function boot(): Promise<void> {
       sidebarWidth: persisted.sidebarWidth,
       outlineWidth: persisted.outlineWidth,
       layout: persisted.layout,
-      activePanel: persisted.activePanel === "outline" ? "outline" : "files",
+      activePanel:
+        persisted.activePanel === "outline" ? "outline" : persisted.activePanel === "search" ? "search" : "files",
     },
     onChange: onLayoutChange,
     renderWelcomeOverlay: (host) => {
@@ -494,15 +670,25 @@ async function boot(): Promise<void> {
     onToggleThemeShortcut: () => {
       document.getElementById("theme-toggle")?.click();
     },
+    onCommandPaletteShortcut: () => openCommandPalette(),
   });
-  initTitlebar();
-  initRail();
+  initTitlebar({
+    onOpenCommandPalette: () => openCommandPalette(),
+    onOpenPreferences: () => openPreferencesOverlay(),
+  });
+  initRail({ onOpenExport: () => openExportOverlay() });
   wireDragDrop();
 
   // Registered after initTheme()'s own #theme-toggle listener (which flips
   // the theme state), so getTheme() here already reflects the new theme.
+  // A manual theme-toggle click is an explicit Light/Dark pick, so it also
+  // breaks out of Auto mode if that was active (matches most apps' own
+  // convention: any deliberate override wins over automatic OS-following).
   document.getElementById("theme-toggle")?.addEventListener("click", () => {
-    appstate.update({ theme: getTheme() });
+    unwatchAutoTheme();
+    const resolved = getTheme();
+    appstate.update({ theme: resolved });
+    appstate.updatePrefs({ themeMode: resolved });
     void onThemeChanged();
   });
 

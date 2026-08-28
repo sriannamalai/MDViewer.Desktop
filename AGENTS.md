@@ -17,18 +17,44 @@ pixel-identical on every OS. 19 commits, version `0.1.0`, still pre-v1.
   per-platform under `vendor/libmdviewer/` and currently **pinned at
   v0.10.0** (see `scripts/fetch-libmdviewer.sh` and `vendor/checksums.txt`;
   v0.10.1 is a Flutter-plugin-only release with no new native artifacts,
-  so v0.10.0 is the latest actual library binary). This app still only
-  uses the five ABI symbols it always has (`mdv_render`, `mdv_parse`,
-  `mdv_asset`, `mdv_free`, `mdv_version`) — it does **not** consume the
-  v0.10 native render tree (`mdv_render_tree*`) yet; it renders HTML from
-  the FFI into a sandboxed webview. Adopting the render tree (a bigger,
-  webview-to-native-widget architectural shift) is a deliberate future
-  step, not automatic.
+  so v0.10.0 is the latest actual library binary). This app uses six ABI
+  symbols now (`mdv_render`, `mdv_parse`, `mdv_asset`, `mdv_free`,
+  `mdv_version`, all via `mdv_render`'s options JSON growing `mermaid`/
+  `math`/`allowRawHTML`/`fragment`/`extraCss` support for the Preferences
+  and Export sheet screens) — it does **not** consume the v0.10 native
+  render tree (`mdv_render_tree*`).
 - **`~/Developer/OpenSource/MDViewer.Mobile`** — the Flutter sibling app,
   same design identity (`design/TOKENS.md` here is byte-identical to that
   repo's copy — keep them in sync), same rendering engine, different
   platform and a more advanced (native render-tree) reader. Useful as a
   reference for how a design decision or FFI quirk was resolved there.
+
+## Architectural specialization (finalized cross-repo decision)
+**Desktop is the HTML/webview rendering flagship by design and is NOT
+pursuing the native render tree.** This was evaluated and finalized
+as part of a cross-repo rendering-engine synchronization effort and is
+deliberately kept, not a gap to close:
+- Tauri's entire UI — including today's document viewer — already runs
+  inside a system webview (`WKWebView`/`WebView2`/WebKitGTK). There are
+  no OS-native widgets to gain by switching to `mdv_render_tree*`:
+  building DOM nodes from the JSON tree via `createElement` would still
+  execute in the same browser engine `innerHTML` does today, and naive
+  node-by-node construction is often *slower* than the browser's own
+  native HTML parser without added virtualization work.
+- Desktop's HTML pipeline is already a complete, working showcase of the
+  library's HTML surface — real interactive `mermaid.js` and KaTeX
+  rendering, code-block headers, theming, and (as of this pass) a strict
+  per-document Content-Security-Policy — unlike Mobile's native path,
+  which still lacks native Mermaid support.
+- Mobile, by contrast, paints native widgets directly via Flutter's own
+  Skia/Impeller pipeline with virtualized scrolling, while its webview
+  fallback embeds a full heavyweight platform WebView per document — so
+  native is the genuinely faster, lighter choice there, justifying its
+  default status on that platform.
+- Practical implication: do not re-litigate "Desktop adopts the native
+  render tree" without a new, concrete reason (e.g. a design change that
+  drops the webview-based design spec entirely). Item 5 under "Next
+  items" below is intentionally the lowest priority for this reason.
 
 ## Architecture
 - **`src-tauri/`** (Rust): `main.rs`/`lib.rs` (app entry, Tauri builder),
@@ -39,14 +65,19 @@ pixel-identical on every OS. 19 commits, version `0.1.0`, still pre-v1.
   layout, panel widths, open tabs, etc.).
 - **`frontend/src/`** (TypeScript, no framework, Vite-built): `main.ts`
   (bootstrap), `titlebar.ts`, `rail.ts` (activity rail), `explorer.ts`
-  (file tree), `tabs.ts`, `toolbar.ts`, `outline.ts` (scrollspy outline),
-  `statusbar.ts`, `viewer.ts` (the sandboxed `<iframe>` viewer consuming
-  rendered HTML), `welcome.ts`, `appstate.ts`, `ipc.ts` (Tauri command
-  bridge), `theme.ts`, `layout.ts`, `tokens.css`/`chrome.css`.
+  (file tree), `search.ts` (full-text search panel), `tabs.ts`,
+  `toolbar.ts`, `outline.ts` (scrollspy outline), `statusbar.ts`,
+  `viewer.ts` (the sandboxed `<iframe>` viewer consuming rendered HTML),
+  `welcome.ts`, `commandpalette.ts`, `preferences.ts`, `exportsheet.ts`,
+  `appstate.ts`, `ipc.ts` (Tauri command bridge), `theme.ts`, `layout.ts`
+  (also the shared overlay host every one of the four overlay modules
+  renders into), `tokens.css`/`chrome.css`.
 - Rendering path: Rust reads a file → calls `libmdviewer` via `ffi.rs` →
   HTML string → sent to frontend → loaded into a **sandboxed**
-  `<iframe sandbox="allow-scripts">` (not a full trust boundary against
-  network requests a document's own HTML makes — see Known limitations).
+  `<iframe sandbox="allow-scripts">` with a strict per-document
+  Content-Security-Policy injected on load (`viewer.ts`) blocking remote
+  image/font/connect requests; external links are intercepted and opened
+  via `tauri-plugin-opener` instead of silently failing.
 - Design spec lives in `design/` — `design/README.md` is the exhaustive
   per-screen/per-component spec (titlebar, activity rail, sidebar,
   resize handles, tabs, doc toolbar, content area, status bar, outline,
@@ -80,43 +111,83 @@ Chronologically (see `git log --oneline`):
     re-verified against the release's published `SHA256SUMS`; no Rust or
     frontend code changes needed since the five ABI symbols this app uses
     are unchanged and append-only.
-
-Not yet built (present in the design spec but no commit history found
-implementing them yet): command palette (⌘K), preferences panel (⚙),
-export sheet (⇪ → PDF/HTML), and full-text search panel — check current
-frontend source before assuming absence, since this file may lag reality.
+13. **Command palette (⌘K)**, **preferences panel (⚙)**, **export sheet
+    (⇪)**, and a **full-text search panel** — the four previously-missing
+    v1 screens. Preferences' Theme/Reading-width/Prose-typeface/Render-
+    math-diagrams/Allow-raw-HTML rows are real, persisted, and (the last
+    three) plumbed into new `render_document`/`export_document` FFI
+    options; Window chrome stays Unified-only (inert — no native-chrome
+    mode exists). Export sheet does Self-contained HTML/HTML fragment via
+    a native save dialog + new `write_export_file` command, and PDF via a
+    hidden print-iframe + the OS print dialog. Search is a new
+    `search_workspace` Rust command (regex/case/whole-word) grepping the
+    open folder's markdown/text files.
+14. **v2 network gating for the document iframe** — every rendered
+    document now gets a strict Content-Security-Policy (blocks remote
+    image/font/connect requests; only embedded `data:`/`blob:` assets are
+    allowed) injected before load, closing the external-links/images gap
+    noted below. External links are intercepted and opened explicitly via
+    `tauri-plugin-opener` instead of silently failing inside the sandbox.
+15. **CHANGELOG.md** added (reconstructed from git history) and
+    **`.github/workflows/{ci,release}.yml`** added — cross-platform CI
+    (frontend build + Rust test/clippy on the three native host targets)
+    and a release pipeline mirroring `MarkDownViewer`'s
+    matrix/package/checksum/upload/aggregate-SHA256SUMS strategy across
+    macOS (arm64 + x86_64 cross-build), Linux (amd64 + arm64), and Windows
+    (amd64). See "Known limitations" for the two gaps this surfaced
+    (non-darwin checksums, Windows ARM64).
 
 ## Known limitations (v1, per README)
-- **Bundle target pinned to darwin-arm64** — `vendor/libmdviewer/` only
-  vendors the arm64 dylib by default; multi-target bundling (fetch+package
-  per-arch in CI) is deferred CI work.
+- **`vendor/checksums.txt` only has real entries for darwin-arm64 and
+  darwin-amd64.** The release workflow's Linux/Windows jobs will fail at
+  the `fetch-libmdviewer.sh` step until someone with network access to
+  GitHub runs `scripts/update-checksums.sh linux-amd64 linux-arm64
+  windows-amd64` (added this pass) and commits the result — this
+  environment had no network access to `github.com` to do it directly.
+- **Windows ARM64 is not yet a real release target.** `build.rs` and
+  `scripts/fetch-libmdviewer.sh` accept a `windows-arm64` target
+  (forward-compatible), and `.github/workflows/release.yml` has a
+  `windows-arm64` job stubbed out and gated off (`if: false`), but there
+  is nothing to vendor: **`MarkDownViewer`'s own `release-ffi.yml` does
+  not publish a windows-arm64 native artifact at all yet** — this is an
+  upstream blocker in the core library's repo, not something fixable from
+  here. Flip the job on once that artifact (and a checksum for it) exist.
 - **Release binary embeds the dev vendor rpath** — harmless (bundle also
   resolves via `@executable_path/../Frameworks`) but not cleaned up.
-- **Mermaid/math rendering inside the packaged `.app` bundle** has not had
-  a dedicated visual verification pass yet (dev-mode rendering and bundle
-  launch/linkage have been verified separately).
-- **External links/images in documents load network content** — the
-  sandboxed iframe doesn't block outbound requests a document's own HTML
-  makes. v2 will intercept/gate this; for now, treat opened documents as
-  trusted-ish disk content, not network-sandboxed.
+- **Mermaid/KaTeX combined-render verification is structural, not a
+  pixel-level screenshot pass.** A new Rust test
+  (`render_document_combines_mermaid_and_katex_without_clobbering_either`
+  in `commands.rs`) renders a document exercising both engines together
+  through the exact same code path the packaged `.app`'s iframe consumes,
+  and the release `.app`/`.dmg` bundle was built and launched successfully
+  in this pass — but no screenshot/computer-use tooling was available to
+  visually confirm on-screen pixels. A human (or an agent with screen
+  capture) should still eyeball a real Mermaid+KaTeX document in the
+  packaged app before tagging a release.
+- **Export sheet's "Options" checklist** (heading anchors / print theme /
+  page numbers / table of contents, per design §10) is not wired to real
+  toggles — none of the current render pipeline's options map onto them
+  1:1 yet. PDF export goes through the OS print dialog rather than
+  programmatic PDF generation (no headless-rendering dependency pulled in
+  for v1).
+- **No `cargo fmt --check` in CI.** The pre-existing codebase isn't
+  rustfmt-clean (verified locally), so adding the check now would fail on
+  unrelated code; a project-wide `cargo fmt` pass is a reasonable
+  separate follow-up before turning this on.
 
 ## Next items (proposed, not yet planned in detail)
-Roughly in priority order based on the design spec vs. what's built and the
-README's own v1→v2 notes:
-1. Command palette, preferences panel, export sheet, full-text search —
-   the remaining designed screens (verify against current `frontend/src`
-   before starting, in case they've since landed).
-2. Multi-arch bundling (Windows/Linux/x86_64 macOS) in CI, replacing the
-   darwin-arm64-only pin.
-3. Visual verification pass on the packaged `.app`'s mermaid/KaTeX
-   rendering before any release tag.
-4. v2: network request gating/interception inside the document iframe
-   sandbox (the external-links/images limitation above).
-5. Track the core library toward v0.10.x/native-render-tree adoption —
-   evaluate whether switching from HTML+iframe to the render tree (as
-   Mobile now does) is worth it here too, once the design supports a
-   non-webview rendering path (currently the design spec assumes HTML/CSS
-   in a webview, so this would be a bigger architectural shift).
+1. Populate `vendor/checksums.txt` for linux-amd64/linux-arm64/
+   windows-amd64 (`scripts/update-checksums.sh`) so the release workflow
+   can actually run end-to-end; verify the workflow with a real tag.
+2. Wire the export sheet's Options checklist to real render toggles where
+   a corresponding library option exists.
+3. A real pixel-level Mermaid/KaTeX visual pass on the packaged `.app`
+   (see "Known limitations" above).
+4. Project-wide `cargo fmt` pass, then turn on a `fmt` CI job.
+5. Track the core library toward native-render-tree adoption for
+   Desktop — **deliberately deprioritized**; see "Architectural
+   specialization" above for why this isn't expected to happen absent a
+   design change away from the current HTML/webview spec.
 
 ## Build & run
 ```bash

@@ -516,12 +516,12 @@ a:hover {
 .doc-content {
   flex: 1;
   min-height: 0;
-  padding: 44px 10% 120px;
+  padding: 44px var(--t-content-side) 120px;
   transition: padding var(--t-dur) var(--t-ease);
 }
 
 html[data-layout="reader"] .doc-content {
-  padding: 72px 10% 140px;
+  padding: 72px var(--t-content-side) 140px;
 }
 
 .welcome-host {
@@ -1107,9 +1107,11 @@ html[data-layout="reader"] .doc-content {
 
 /* ---------------------------------------------------------- Overlay veil */
 
-/* "Welcome over doc" — rail's Home button (design §2/§11 "Overlays: veil
-   click or Esc dismisses"). Only overlay v1 ships; command palette/
-   settings/export sheets are later tasks. */
+/* Shared veil for every overlay kind (design §2/§11 "Overlays: veil click
+   or Esc dismisses") — welcome-over-doc, command palette, preferences,
+   and the export sheet all render into the same #overlay/#overlay-content
+   host; layout.ts owns show/hide + dismissal, each overlay's own module
+   owns its panel's markup below. */
 .overlay-veil {
   position: fixed;
   inset: 0;
@@ -1153,4 +1155,552 @@ html[data-layout="reader"] .doc-content {
     opacity: 1;
     transform: none;
   }
+}
+
+/* -------------------------------------------------------- Command palette */
+/* design/README.md §8. */
+
+.palette-panel {
+  width: 560px;
+  max-width: 90%;
+  margin-top: 110px;
+  background: var(--t-panel);
+  border: 1px solid var(--t-line);
+  border-radius: var(--t-radius-overlay);
+  box-shadow: var(--t-shadow);
+  overflow: hidden;
+  animation: mdv-overlay-rise var(--t-dur-overlay) var(--t-ease);
+}
+
+.palette-query-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--t-line2);
+}
+
+.palette-query-glyph {
+  color: var(--t-accent);
+  font-size: 15px;
+}
+
+.palette-query-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  font-size: 15px;
+  color: var(--t-text);
+  caret-color: var(--t-accent);
+}
+
+.palette-query-input::placeholder {
+  color: var(--t-text3);
+}
+
+.palette-list {
+  padding: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.palette-section-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--t-text3);
+  padding: 6px 12px;
+}
+
+.palette-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.palette-row.active {
+  background: var(--t-accent-soft);
+}
+
+.palette-row-icon {
+  width: 16px;
+  text-align: center;
+  color: var(--t-text3);
+  font-size: 13px;
+}
+
+.palette-row.active .palette-row-icon {
+  color: var(--t-accent);
+}
+
+.palette-row-label {
+  flex: 1;
+  font-size: 13.5px;
+  color: var(--t-text);
+}
+
+.palette-row-key {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--t-text3);
+  border: 1px solid var(--t-line);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.palette-empty {
+  padding: 9px 12px;
+  font-size: 12.5px;
+  color: var(--t-text3);
+}
+
+.palette-footer {
+  display: flex;
+  gap: 16px;
+  padding: 9px 16px;
+  border-top: 1px solid var(--t-line2);
+  background: var(--t-panel2);
+  font-size: 11px;
+  color: var(--t-text3);
+}
+
+/* ----------------------------------------------------------- Preferences */
+/* design/README.md §9. */
+
+.prefs-panel {
+  width: 660px;
+  max-width: 90%;
+  margin-top: 70px;
+  max-height: 740px;
+  background: var(--t-panel);
+  border: 1px solid var(--t-line);
+  border-radius: var(--t-radius-overlay);
+  box-shadow: var(--t-shadow);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: mdv-overlay-rise var(--t-dur-overlay) var(--t-ease);
+}
+
+.prefs-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--t-line);
+  flex: none;
+}
+
+.prefs-title {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--t-text);
+}
+
+.prefs-close {
+  color: var(--t-text3);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.prefs-close:hover {
+  color: var(--t-text);
+}
+
+.prefs-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 10px 24px 0;
+  flex: none;
+}
+
+.prefs-tab {
+  font-size: 12.5px;
+  padding: 6px 12px;
+  border-radius: 7px 7px 0 0;
+  cursor: pointer;
+  color: var(--t-text3);
+  border-bottom: 2px solid transparent;
+}
+
+.prefs-tab.active {
+  color: var(--t-text);
+  font-weight: 500;
+  border-bottom-color: var(--t-accent);
+}
+
+.prefs-body {
+  padding: 6px 24px 24px;
+  overflow-y: auto;
+}
+
+.prefs-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 15px 0;
+  border-bottom: 1px solid var(--t-line2);
+}
+
+.prefs-row.inert {
+  opacity: 0.55;
+}
+
+.prefs-row-text {
+  flex: 1;
+}
+
+.prefs-row-label {
+  font-size: 13.5px;
+  color: var(--t-text);
+  margin-bottom: 2px;
+}
+
+.prefs-row-hint {
+  font-size: 12px;
+  color: var(--t-text3);
+  line-height: 1.5;
+}
+
+.prefs-segmented {
+  display: flex;
+  background: var(--t-panel2);
+  border: 1px solid var(--t-line);
+  border-radius: var(--t-radius-control);
+  padding: 2px;
+}
+
+.prefs-segment {
+  font-size: 12px;
+  padding: 4px 11px;
+  border-radius: 5px;
+  cursor: pointer;
+  color: var(--t-text3);
+}
+
+.prefs-segment.active {
+  background: var(--t-panel);
+  color: var(--t-text);
+  font-weight: 500;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.prefs-toggle {
+  width: 38px;
+  height: 22px;
+  border-radius: 12px;
+  background: var(--t-line);
+  padding: 2px;
+  display: flex;
+  justify-content: flex-start;
+  cursor: pointer;
+}
+
+.prefs-toggle.on {
+  background: var(--t-accent);
+  justify-content: flex-end;
+}
+
+.prefs-toggle.disabled {
+  cursor: default;
+}
+
+.prefs-toggle-knob {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+/* ----------------------------------------------------------- Export sheet */
+/* design/README.md §10. */
+
+.export-panel {
+  width: 900px;
+  max-width: 92%;
+  margin-top: 60px;
+  max-height: 760px;
+  background: var(--t-panel);
+  border: 1px solid var(--t-line);
+  border-radius: var(--t-radius-overlay);
+  box-shadow: var(--t-shadow);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: mdv-overlay-rise var(--t-dur-overlay) var(--t-ease);
+}
+
+.export-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--t-line);
+  flex: none;
+}
+
+.export-title {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--t-text);
+}
+
+.export-close {
+  color: var(--t-text3);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.export-close:hover {
+  color: var(--t-text);
+}
+
+.export-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.export-rail {
+  width: 280px;
+  flex: none;
+  border-right: 1px solid var(--t-line);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.export-section-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--t-text3);
+  margin-bottom: 9px;
+}
+
+.export-format-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.export-format-card {
+  padding: 9px 11px;
+  border-radius: var(--t-radius-block);
+  border: 1px solid var(--t-line);
+  cursor: pointer;
+}
+
+.export-format-card.selected {
+  border-color: var(--t-accent-line);
+  background: var(--t-accent-soft);
+}
+
+.export-format-title {
+  font-size: 13px;
+  color: var(--t-text);
+}
+
+.export-format-card.selected .export-format-title {
+  font-weight: 500;
+}
+
+.export-format-sub {
+  font-size: 11.5px;
+  color: var(--t-text3);
+  margin-top: 1px;
+}
+
+.export-actions {
+  margin-top: auto;
+  display: flex;
+  gap: 8px;
+}
+
+.export-btn {
+  flex: 1;
+  text-align: center;
+  font-size: 13px;
+  padding: 9px;
+  border-radius: var(--t-radius-block);
+  cursor: pointer;
+}
+
+.export-btn-outline {
+  border: 1px solid var(--t-line);
+  color: var(--t-text2);
+}
+
+.export-btn-primary {
+  background: var(--t-accent);
+  color: #fff;
+  font-weight: 500;
+}
+
+.export-preview {
+  flex: 1;
+  background: var(--t-bg);
+  padding: 26px;
+  overflow-y: auto;
+}
+
+.export-preview-hint {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--t-text3);
+  max-width: 380px;
+}
+
+/* ------------------------------------------------------------- Search panel */
+/* design/README.md §3 "Search" — renders into the same #sidebar-inner
+   mount as .sidebar-header/.sidebar-body above; reuses those two classes
+   for its own header/body shell. */
+
+.search-body {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.search-query-wrap {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--t-line2);
+  flex: none;
+}
+
+.search-query-row {
+  height: 30px;
+  border-radius: var(--t-radius-control);
+  background: var(--t-panel2);
+  border: 1px solid var(--t-accent-line);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+}
+
+.search-query-icon {
+  font-size: 12px;
+  color: var(--t-text3);
+}
+
+.search-query-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--t-text);
+  caret-color: var(--t-accent);
+}
+
+.search-query-input::placeholder {
+  font-family: var(--font-ui);
+  color: var(--t-text3);
+}
+
+.search-chip-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.search-chip {
+  font-size: 10.5px;
+  padding: 2px 7px;
+  border-radius: 20px;
+  border: 1px solid var(--t-line);
+  color: var(--t-text3);
+  cursor: pointer;
+}
+
+.search-chip.active {
+  border-color: transparent;
+  background: var(--t-accent-soft);
+  color: var(--t-accent);
+  font-weight: 500;
+}
+
+.search-results-wrap {
+  padding: 10px 6px 16px;
+}
+
+.search-count {
+  font-size: 11px;
+  color: var(--t-text3);
+  padding: 0 10px 8px;
+}
+
+.search-error {
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--t-accent);
+}
+
+.search-result-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.search-result-card {
+  padding: 6px 10px;
+  border-radius: var(--t-radius-block);
+  cursor: pointer;
+}
+
+.search-result-card:hover {
+  background: var(--t-panel2);
+}
+
+.search-result-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11.5px;
+  color: var(--t-text2);
+  margin-bottom: 3px;
+}
+
+.search-result-file {
+  font-weight: 500;
+  color: var(--t-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-result-line {
+  font-family: var(--font-mono);
+  color: var(--t-text3);
+  flex: none;
+  margin-left: 8px;
+}
+
+.search-result-snippet {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--t-text2);
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-result-match {
+  background: var(--t-accent-soft);
+  color: var(--t-accent);
+  border-radius: 2px;
 }

@@ -36,3 +36,36 @@ export function initTheme(initial: Theme = "light"): void {
   setTheme(initial);
   document.getElementById("theme-toggle")?.addEventListener("click", toggleTheme);
 }
+
+// -------------------------------------------------------- Preferences "Auto"
+// design/README.md §9: Theme = Light/Dark/Auto. "Auto" isn't a `Theme`
+// value itself (every other module — viewer.ts, chrome.css via
+// data-theme — only ever needs the two resolved values) — it's a
+// preferences-only concept that main.ts resolves into a concrete `Theme`
+// via the functions below, then feeds through the same setTheme() path as
+// a manual pick.
+
+/** Resolves "auto" against the OS's current color-scheme preference; light/dark pass through unchanged. */
+export function resolveThemeMode(mode: Theme | "auto"): Theme {
+  if (mode !== "auto") return mode;
+  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+let autoQuery: MediaQueryList | null = null;
+let autoHandler: (() => void) | null = null;
+
+/** Starts (or restarts) watching the OS color-scheme preference, calling `onChange` with the newly-resolved theme on every change. No-op call to `unwatchAutoTheme()` first is required by no one — this replaces any previous listener itself. */
+export function watchAutoTheme(onChange: (theme: Theme) => void): void {
+  unwatchAutoTheme();
+  if (!window.matchMedia) return;
+  autoQuery = window.matchMedia("(prefers-color-scheme: dark)");
+  autoHandler = () => onChange(autoQuery!.matches ? "dark" : "light");
+  autoQuery.addEventListener("change", autoHandler);
+}
+
+/** Stops watching the OS color-scheme preference (leaving Auto mode for an explicit Light/Dark pick). */
+export function unwatchAutoTheme(): void {
+  if (autoQuery && autoHandler) autoQuery.removeEventListener("change", autoHandler);
+  autoQuery = null;
+  autoHandler = null;
+}

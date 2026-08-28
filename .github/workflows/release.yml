@@ -1,0 +1,164 @@
+name: Release
+on:
+  release: {types: [published]}
+permissions:
+  contents: write
+env:
+  TAG: ${{ github.event.release.tag_name }}
+jobs:
+  # Mirrors MarkDownViewer's own release-ffi.yml strategy: a build matrix,
+  # per-target packaging + checksum, upload to the release, then one
+  # aggregation job that collects every per-target checksum into a single
+  # SHA256SUMS asset.
+  #
+  # Targets: macOS arm64 (native) + x86_64 (cross-compiled on the arm64
+  # runner, same approach MarkDownViewer's Go build uses for its own
+  # darwin-amd64 job — no Intel macOS hosted runners exist anymore),
+  # Linux amd64 + arm64 (both native, GitHub now hosts arm64 Linux
+  # runners), Windows amd64 (native).
+  #
+  # Windows ARM64 is intentionally NOT in this matrix yet — see the
+  # `windows-arm64` job below (kept for documentation, gated off) and
+  # AGENTS.md's known-limitations note: libmdviewer's own release-ffi.yml
+  # doesn't publish a windows-arm64 native artifact yet, so there is
+  # nothing for this app to vendor for that target regardless of Desktop's
+  # own CI readiness.
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: macos-14, vendor-target: darwin-arm64, rust-target: aarch64-apple-darwin, artifact: darwin-arm64}
+          - {os: macos-14, vendor-target: darwin-amd64, rust-target: x86_64-apple-darwin, artifact: darwin-amd64}
+          - {os: ubuntu-latest, vendor-target: linux-amd64, rust-target: x86_64-unknown-linux-gnu, artifact: linux-amd64}
+          - {os: ubuntu-24.04-arm, vendor-target: linux-arm64, rust-target: aarch64-unknown-linux-gnu, artifact: linux-arm64}
+          - {os: windows-latest, vendor-target: windows-amd64, rust-target: x86_64-pc-windows-msvc, artifact: windows-amd64}
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run: {shell: bash}
+    steps:
+      - uses: actions/checkout@v5
+        with: {ref: "${{ github.event.release.tag_name }}"}
+      - uses: dtolnay/rust-toolchain@stable
+        with: {targets: "${{ matrix.rust-target }}"}
+      - uses: actions/setup-node@v4
+        with: {node-version: "20"}
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2" --locked
+      - name: Install Linux Tauri system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf build-essential
+      - name: Fetch vendored libmdviewer
+        run: ./scripts/fetch-libmdviewer.sh ${{ matrix.vendor-target }}
+      # Tauri has no per-CPU-arch config override (only per-OS via
+      # tauri.<os>.conf.json), and tauri.conf.json's macOS.frameworks path
+      # is checked in pointing at darwin-arm64 (the common dev-machine
+      # case) — rewrite it for the x86_64 cross-build so the bundle embeds
+      # the matching-arch dylib instead of silently shipping the wrong one.
+      - name: Point macOS x86_64 build at the darwin-amd64 dylib
+        if: matrix.vendor-target == 'darwin-amd64'
+        run: sed -i '' 's/darwin-arm64/darwin-amd64/' src-tauri/tauri.conf.json
+      - name: Build (frontend via beforeBuildCommand, then the Tauri bundle)
+        run: cargo tauri build --target ${{ matrix.rust-target }}
+      - name: Package
+        id: package
+        run: |
+          ver="${TAG#v}"
+          bundle_dir="src-tauri/target/${{ matrix.rust-target }}/release/bundle"
+          out="mdviewer-desktop-${ver}-${{ matrix.artifact }}"
+          mkdir -p "dist/${out}"
+          # Copy every produced bundle format for this platform (app+dmg on
+          # macOS, deb+AppImage on Linux, msi+nsis-exe on Windows) rather
+          # than hardcoding one — `bundle.targets` in tauri.conf.json lists
+          # several and Tauri only actually builds the ones valid for the
+          # host OS.
+          find "$bundle_dir" -mindepth 2 -maxdepth 2 -type f \
+            \( -name '*.app' -o -name '*.dmg' -o -name '*.deb' -o -name '*.AppImage' -o -name '*.msi' -o -name '*.exe' \) \
+            -exec cp -R {} "dist/${out}/" \; || true
+          # .app is a directory, not a file — `find -type f` above misses
+          # it; copy it explicitly if present.
+          if [ -d "$bundle_dir/macos" ]; then cp -R "$bundle_dir"/macos/*.app "dist/${out}/" 2>/dev/null || true; fi
+          zip_name="${out}.zip"
+          (cd dist && zip -r "../${zip_name}" "${out}")
+          echo "ZIP=${zip_name}" >> "$GITHUB_ENV"
+      - name: Upload to release
+        env: {GH_TOKEN: "${{ github.token }}"}
+        run: gh release upload "$TAG" "$ZIP" --clobber
+      - name: Record checksum
+        run: |
+          if command -v sha256sum >/dev/null; then sha256sum "$ZIP" > "${{ matrix.artifact }}.sha256"
+          else shasum -a 256 "$ZIP" > "${{ matrix.artifact }}.sha256"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sha256-${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}.sha256
+
+  # Deliberately gated off (if: false) — see the `build` job's comment
+  # above. Flip this on once (a) libmdviewer publishes a windows-arm64 FFI
+  # artifact with a pinned checksum in vendor/checksums.txt (run
+  # scripts/update-checksums.sh windows-arm64 once that exists), and
+  # (b) a hosted windows-arm64 GitHub Actions runner (e.g. `windows-11-arm`)
+  # is available for this repo, or cross-compilation from windows-latest
+  # with the aarch64-pc-windows-msvc target + ARM64 MSVC toolchain
+  # component has been verified to produce a working WebView2-linked
+  # binary.
+  windows-arm64:
+    if: false
+    runs-on: windows-11-arm
+    defaults:
+      run: {shell: bash}
+    steps:
+      - uses: actions/checkout@v5
+        with: {ref: "${{ github.event.release.tag_name }}"}
+      - uses: dtolnay/rust-toolchain@stable
+        with: {targets: aarch64-pc-windows-msvc}
+      - uses: actions/setup-node@v4
+        with: {node-version: "20"}
+      - run: cargo install tauri-cli --version "^2" --locked
+      - run: ./scripts/fetch-libmdviewer.sh windows-arm64
+      - run: cargo tauri build --target aarch64-pc-windows-msvc
+      - name: Package
+        run: |
+          ver="${TAG#v}"
+          bundle_dir="src-tauri/target/aarch64-pc-windows-msvc/release/bundle"
+          out="mdviewer-desktop-${ver}-windows-arm64"
+          mkdir -p "dist/${out}"
+          find "$bundle_dir" -mindepth 2 -maxdepth 2 -type f \( -name '*.msi' -o -name '*.exe' \) -exec cp {} "dist/${out}/" \;
+          zip_name="${out}.zip"
+          (cd dist && zip -r "../${zip_name}" "${out}")
+          echo "ZIP=${zip_name}" >> "$GITHUB_ENV"
+      - env: {GH_TOKEN: "${{ github.token }}"}
+        run: gh release upload "$TAG" "$ZIP" --clobber
+      - run: sha256sum "$ZIP" > windows-arm64.sha256
+      - uses: actions/upload-artifact@v4
+        with: {name: sha256-windows-arm64, path: windows-arm64.sha256}
+
+  # Aggregates every build job's per-zip checksum into one SHA256SUMS file
+  # (standard `sha256sum` format, sorted by filename) and uploads it as a
+  # release asset, so consumers can `sha256sum -c` their download.
+  checksums:
+    needs: [build]
+    runs-on: ubuntu-latest
+    defaults:
+      run: {shell: bash}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: sha256-*
+          path: sums
+          merge-multiple: true
+      - name: Aggregate and upload SHA256SUMS
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          cat sums/*.sha256 | LC_ALL=C sort -k2 > SHA256SUMS
+          # One line per shipped zip: 5 build-matrix targets today. A
+          # mismatch means a job stopped uploading its checksum — fail
+          # loudly rather than publish a partial file.
+          test "$(wc -l < SHA256SUMS)" -eq 5
+          cat SHA256SUMS
+          gh release upload "$TAG" SHA256SUMS --clobber
