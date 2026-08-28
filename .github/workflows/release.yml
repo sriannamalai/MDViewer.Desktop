@@ -47,6 +47,14 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf build-essential
       - name: Fetch vendored libmdviewer
         run: ./scripts/fetch-libmdviewer.sh ${{ matrix.vendor-target }}
+      # cargo tauri build's beforeBuildCommand only RUNS `npm run build` —
+      # it doesn't install dependencies first (unlike ci.yml's frontend/test
+      # jobs, which run `npm ci` explicitly) — without this, `tsc`/`vite`
+      # and the `@tauri-apps/*` type packages aren't present and the build
+      # fails immediately.
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
       # Tauri has no per-CPU-arch config override (only per-OS via
       # tauri.<os>.conf.json), and tauri.conf.json's macOS.frameworks path
       # is checked in pointing at darwin-arm64 (the common dev-machine
@@ -111,6 +119,9 @@ jobs:
         with: {node-version: "20"}
       - run: cargo install tauri-cli --version "^2" --locked
       - run: ./scripts/fetch-libmdviewer.sh windows-arm64
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
       - run: cargo tauri build --target aarch64-pc-windows-msvc
       - name: Package
         run: |
