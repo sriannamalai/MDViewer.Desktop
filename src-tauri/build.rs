@@ -187,10 +187,15 @@ fn copy_dll_for_runtime(vendor: &Path) {
 ///
 ///           1    0 00001060 mdv_asset
 ///           2    1 00001070 mdv_free
+///
+///   Summary
 /// ```
-/// so once the header row is seen, every non-blank row's 4th
-/// whitespace-separated field is a name — the table ends at the first
-/// blank line after it starts.
+/// Note the *blank line between the header and the first row* — the table
+/// doesn't truly end until the next blank line *after* at least one row
+/// has been read (confirmed against real dumpbin output in CI: stopping
+/// at the first blank line unconditionally, as an earlier version of this
+/// function did, matched the header's own trailing blank line and never
+/// read a single row).
 fn parse_dumpbin_exports(output: &str) -> Vec<String> {
     let mut names = Vec::new();
     let mut in_table = false;
@@ -203,7 +208,10 @@ fn parse_dumpbin_exports(output: &str) -> Vec<String> {
             continue;
         }
         if trimmed.is_empty() {
-            break;
+            if names.is_empty() {
+                continue; // the blank line between the header and the first row
+            }
+            break; // the blank line after the last row
         }
         let parts: Vec<&str> = trimmed.split_whitespace().collect();
         if let Some(name) = parts.get(3)
