@@ -46,9 +46,44 @@ fn theme_overrides(theme: &str) -> std::collections::BTreeMap<String, String> {
     overrides
 }
 
+/// Preferences panel toggles (design §9) that affect how a document is
+/// rendered — plumbed straight into `ffi::RenderOptions`. Defaults
+/// (`#[serde(default)]`) match the library's own so older frontend builds
+/// (or a stale persisted-state blob missing the `prefs` object) invoking
+/// this command without the field still render exactly as before.
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(default)]
+pub struct RenderPrefs {
+    pub mermaid: bool,
+    pub math: bool,
+    pub allow_raw_html: bool,
+    /// "sans" (library default, omitted) or "serif" — anything else is
+    /// treated as "sans".
+    pub prose_typeface: String,
+}
+
+impl Default for RenderPrefs {
+    fn default() -> Self {
+        RenderPrefs { mermaid: true, math: true, allow_raw_html: false, prose_typeface: String::new() }
+    }
+}
+
+/// CSS appended after the library's base stylesheet (`extraCss`) to swap
+/// the prose typeface to the bundled serif font — `!important` because it
+/// must win over the base stylesheet's own font-family rule regardless of
+/// that rule's selector specificity.
+fn typeface_extra_css(prose_typeface: &str) -> Option<String> {
+    if prose_typeface == "serif" {
+        Some("body.markdown-body{font-family:'Source Serif 4',Georgia,serif !important;}".to_string())
+    } else {
+        None
+    }
+}
+
 #[tauri::command]
-pub fn render_document(markdown: String, theme: String) -> Result<String, String> {
+pub fn render_document(markdown: String, theme: String, prefs: Option<RenderPrefs>) -> Result<String, String> {
     let overrides = theme_overrides(&theme);
+    let prefs = prefs.unwrap_or_default();
     // `code_header` is always on: design/README.md §7 specifies code blocks
     // with a header row (uppercase language + Copy affordance), which the
     // library renders itself since v0.8.
@@ -57,8 +92,51 @@ pub fn render_document(markdown: String, theme: String) -> Result<String, String
         source_map: true,
         code_header: true,
         theme_overrides: overrides,
+        mermaid: prefs.mermaid,
+        math: prefs.math,
+        allow_raw_html: prefs.allow_raw_html,
+        extra_css: typeface_extra_css(&prefs.prose_typeface),
+        ..Default::default()
     };
     ffi::render(&markdown, &opts).map_err(|e| e.to_string())
+}
+
+/// Export sheet (design §10) — same render path as `render_document`, but
+/// with `fragment` controllable ("Self-contained HTML" needs the full
+/// page; "HTML fragment" needs body-only markup so a host page's own
+/// styles apply) and always full fidelity (math/mermaid/raw-HTML follow
+/// the same live preferences the on-screen preview used, via `prefs`, so
+/// an exported file matches what the user was actually looking at).
+#[tauri::command]
+pub fn export_document(
+    markdown: String,
+    theme: String,
+    fragment: bool,
+    prefs: Option<RenderPrefs>,
+) -> Result<String, String> {
+    let overrides = theme_overrides(&theme);
+    let prefs = prefs.unwrap_or_default();
+    let opts = ffi::RenderOptions {
+        theme,
+        source_map: false,
+        code_header: true,
+        theme_overrides: overrides,
+        mermaid: prefs.mermaid,
+        math: prefs.math,
+        allow_raw_html: prefs.allow_raw_html,
+        fragment,
+        extra_css: typeface_extra_css(&prefs.prose_typeface),
+    };
+    ffi::render(&markdown, &opts).map_err(|e| e.to_string())
+}
+
+/// Writes `contents` verbatim to `path` — the export sheet's "Export"
+/// button, after the user picks a destination via the native save dialog
+/// on the frontend. A thin wrapper (no format-specific logic here) since
+/// `export_document`/the print-to-PDF flow already produced final bytes.
+#[tauri::command]
+pub fn write_export_file(path: String, contents: String) -> Result<(), String> {
+    std::fs::write(&path, contents).map_err(|e| format!("{path}: {e}"))
 }
 
 #[tauri::command]
@@ -182,13 +260,123 @@ pub fn library_version() -> String {
     ffi::version()
 }
 
+// ------------------------------------------------------------- Full-text search
+// design/README.md §3 ("Search" sidebar panel) — a plain, dependency-light
+// grep over the open folder's markdown/text files. Deliberately not
+// index-backed (v1 scope): each search re-walks the tree and re-reads
+// every candidate file, which is fine for the vault sizes this app
+// targets and keeps the feature's whole footprint to this one command.
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SearchMatch {
+    pub path: String,
+    pub line: u32,
+    pub snippet: String,
+    /// Char offsets (not byte offsets) into `snippet` bounding the match,
+    /// for the frontend to highlight without re-running the regex itself.
+    pub match_start: u32,
+    pub match_end: u32,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SearchResult {
+    pub matches: Vec<SearchMatch>,
+    pub files_matched: u32,
+    /// True if `matches` was cut short by `MAX_MATCHES` — lets the panel
+    /// show "200+ results" instead of implying an exhaustive count.
+    pub truncated: bool,
+}
+
+const MAX_MATCHES: usize = 200;
+
+/// ".md"/".markdown"/".txt", case-insensitive — same candidate set the
+/// Explorer's own file-open dialog offers (main.ts's `FILE_FILTERS`).
+fn is_searchable_file(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    lower.ends_with(".md") || lower.ends_with(".markdown") || lower.ends_with(".txt")
+}
+
+fn collect_searchable_files(dir: &Path, out: &mut Vec<std::path::PathBuf>) {
+    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if is_dotfile(&name) {
+            continue;
+        }
+        let path = entry.path();
+        if path.is_dir() {
+            collect_searchable_files(&path, out);
+        } else if is_searchable_file(&name) {
+            out.push(path);
+        }
+    }
+}
+
+fn build_matcher(query: &str, case_sensitive: bool, whole_word: bool, regex_mode: bool) -> Result<regex::Regex, String> {
+    let pattern = if regex_mode { query.to_string() } else { regex::escape(query) };
+    let pattern = if whole_word { format!(r"\b(?:{pattern})\b") } else { pattern };
+    regex::RegexBuilder::new(&pattern)
+        .case_insensitive(!case_sensitive)
+        .build()
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn search_workspace(
+    root: String,
+    query: String,
+    case_sensitive: bool,
+    whole_word: bool,
+    regex_mode: bool,
+) -> Result<SearchResult, String> {
+    if query.is_empty() {
+        return Ok(SearchResult { matches: Vec::new(), files_matched: 0, truncated: false });
+    }
+    let matcher = build_matcher(&query, case_sensitive, whole_word, regex_mode)?;
+
+    let mut files = Vec::new();
+    collect_searchable_files(Path::new(&root), &mut files);
+    files.sort();
+
+    let mut matches = Vec::new();
+    let mut files_matched = 0u32;
+    let mut truncated = false;
+    'files: for file in files {
+        let Ok(content) = std::fs::read_to_string(&file) else { continue };
+        let mut file_had_match = false;
+        for (i, line) in content.lines().enumerate() {
+            let Some(m) = matcher.find(line) else { continue };
+            file_had_match = true;
+            matches.push(SearchMatch {
+                path: file.to_string_lossy().into_owned(),
+                line: (i + 1) as u32,
+                snippet: line.to_string(),
+                match_start: line[..m.start()].chars().count() as u32,
+                match_end: line[..m.end()].chars().count() as u32,
+            });
+            if matches.len() >= MAX_MATCHES {
+                truncated = true;
+                if file_had_match {
+                    files_matched += 1;
+                }
+                break 'files;
+            }
+        }
+        if file_had_match {
+            files_matched += 1;
+        }
+    }
+
+    Ok(SearchResult { matches, files_matched, truncated })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn render_document_dark_theme_applies_design_token_overrides() {
-        let html = render_document("# T\n".into(), "dark".into()).unwrap();
+        let html = render_document("# T\n".into(), "dark".into(), None).unwrap();
         // Guards against silently-dropped override keys: assert the
         // overridden *value* actually landed in the output, not just that
         // the call succeeded.
@@ -198,7 +386,7 @@ mod tests {
 
     #[test]
     fn render_document_light_theme_applies_design_token_overrides() {
-        let html = render_document("# T\n".into(), "light".into()).unwrap();
+        let html = render_document("# T\n".into(), "light".into(), None).unwrap();
         assert!(html.contains("#f7f6f3"), "missing light bg override: {html}");
         assert!(html.contains("#f4f2ee"), "missing light code-bg override: {html}");
     }
@@ -208,10 +396,124 @@ mod tests {
         // design/README.md §7: code blocks carry a header row (language +
         // Copy affordance). Rendered by the library since v0.8; this app
         // requests it unconditionally.
-        let html = render_document("```go\nfmt.Println(1)\n```\n".into(), "light".into()).unwrap();
+        let html = render_document("```go\nfmt.Println(1)\n```\n".into(), "light".into(), None).unwrap();
         assert!(html.contains("md-code-header"), "missing code header: {html}");
         assert!(html.contains("md-code-lang"), "missing language label: {html}");
         assert!(html.contains("md-code-copy"), "missing Copy affordance: {html}");
+    }
+
+    #[test]
+    fn render_document_disables_mermaid_and_math_via_prefs() {
+        let prefs = RenderPrefs { mermaid: false, math: false, ..Default::default() };
+        let html = render_document("# T\n\n$x$\n".into(), "light".into(), Some(prefs)).unwrap();
+        // With math disabled the library falls back to a plain code shape
+        // instead of a KaTeX span — assert the KaTeX runtime itself isn't
+        // embedded rather than asserting on inner markup we don't own.
+        assert!(!html.contains("katex.render"), "expected KaTeX to be skipped: {html}");
+    }
+
+    #[test]
+    fn render_document_serif_typeface_appends_extra_css() {
+        let prefs = RenderPrefs { prose_typeface: "serif".into(), ..Default::default() };
+        let html = render_document("# T\n".into(), "light".into(), Some(prefs)).unwrap();
+        assert!(html.contains("Source Serif 4"), "missing serif typeface override: {html}");
+    }
+
+    /// Visual-verification proxy for the packaged `.app`'s Mermaid/KaTeX
+    /// rendering (AGENTS.md known limitation): this test runs the exact
+    /// same `render_document` → `ffi::render` → packaged-`libmdviewer`
+    /// path the .app's iframe consumes, with a document exercising both
+    /// engines together (a prior pixel-level pass only checked dev-mode
+    /// rendering and bundle launch/linkage separately). It can't replace
+    /// an actual eyeballed screenshot of the bundled app, but it does
+    /// confirm both engines' script/init markup survive being combined in
+    /// one render pass — the thing most likely to break if either
+    /// changed independently.
+    #[test]
+    fn render_document_combines_mermaid_and_katex_without_clobbering_either() {
+        let markdown = "# Diagram + math\n\n```mermaid\ngraph TD; A-->B;\n```\n\nInline $x^2$ and:\n\n$$\ny = x^2\n$$\n";
+        let html = render_document(markdown.into(), "light".into(), None).unwrap();
+
+        assert!(html.contains("class=\"mermaid\"") || html.contains("graph TD"), "mermaid block missing: {html}");
+        assert!(html.contains("mermaid.initialize"), "mermaid runtime not wired: {html}");
+        assert!(html.contains("katex.render"), "KaTeX runtime not wired: {html}");
+        assert!(html.contains("class=\"math"), "math node missing: {html}");
+        // Both engines' inline <script> bundles must appear intact and in
+        // document order, not truncated/interleaved by the other's output.
+        let mermaid_idx = html.find("mermaid.initialize").unwrap();
+        let katex_idx = html.find("katex.render").unwrap();
+        assert!(mermaid_idx < katex_idx, "expected mermaid init before katex render in document order");
+    }
+
+    #[test]
+    fn export_document_fragment_omits_html_wrapper() {
+        let full = export_document("# T\n".into(), "light".into(), false, None).unwrap();
+        let fragment = export_document("# T\n".into(), "light".into(), true, None).unwrap();
+        assert!(full.contains("<html"), "expected a full page: {full}");
+        assert!(!fragment.contains("<html"), "expected body-only markup: {fragment}");
+        assert!(fragment.contains("<h1"), "expected the heading to still render: {fragment}");
+    }
+
+    #[test]
+    fn write_export_file_round_trips_contents() {
+        let dir = std::env::temp_dir().join(format!(
+            "mdviewer-commands-export-test-{}",
+            std::time::SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("out.html");
+
+        write_export_file(file.to_string_lossy().into_owned(), "<p>hi</p>".into()).unwrap();
+
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "<p>hi</p>");
+    }
+
+    #[test]
+    fn search_workspace_finds_matches_across_files_case_insensitively() {
+        let dir = std::env::temp_dir().join(format!(
+            "mdviewer-commands-search-test-{}",
+            std::time::SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        std::fs::create_dir_all(dir.join("sub")).unwrap();
+        std::fs::write(dir.join("a.md"), "first line\nsecond RESOLVER line\n").unwrap();
+        std::fs::write(dir.join("sub").join("b.md"), "a resolver reference\n").unwrap();
+        std::fs::write(dir.join("skip.png"), "resolver").unwrap();
+
+        let result = search_workspace(dir.to_string_lossy().into_owned(), "resolver".into(), false, false, false).unwrap();
+
+        assert_eq!(result.files_matched, 2);
+        assert_eq!(result.matches.len(), 2);
+        assert!(!result.truncated);
+        let a_match = result.matches.iter().find(|m| m.path.ends_with("a.md")).unwrap();
+        assert_eq!(a_match.line, 2);
+    }
+
+    #[test]
+    fn search_workspace_case_sensitive_excludes_different_case() {
+        let dir = std::env::temp_dir().join(format!(
+            "mdviewer-commands-search-cs-test-{}",
+            std::time::SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("a.md"), "Resolver\n").unwrap();
+
+        let result = search_workspace(dir.to_string_lossy().into_owned(), "resolver".into(), true, false, false).unwrap();
+
+        assert_eq!(result.matches.len(), 0);
+    }
+
+    #[test]
+    fn search_workspace_whole_word_excludes_substring_matches() {
+        let dir = std::env::temp_dir().join(format!(
+            "mdviewer-commands-search-ww-test-{}",
+            std::time::SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("a.md"), "prerender rendering render\n").unwrap();
+
+        let result = search_workspace(dir.to_string_lossy().into_owned(), "render".into(), false, true, false).unwrap();
+
+        assert_eq!(result.matches.len(), 1, "expected only the standalone word to match: {:?}", result.matches);
     }
 
     #[test]

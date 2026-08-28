@@ -1,0 +1,63 @@
+name: CI
+on:
+  push: {branches: [main]}
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run: {working-directory: frontend}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with: {node-version: "20"}
+      - run: npm ci
+      - run: npm run build
+
+  # No `cargo fmt --check` job: the existing codebase predates any
+  # formatting convention/CI and isn't rustfmt-clean as-is (verified
+  # locally — dozens of pre-existing, unrelated diffs). Adding the check
+  # now would fail on day one for code this task didn't touch; a
+  # project-wide `cargo fmt` pass is a reasonable separate follow-up.
+
+  # cargo test/clippy run build.rs (links the vendored libmdviewer for the
+  # host's own target) and tauri-build (reads tauri.conf.json's
+  # frontendDist), so both the native lib fetch and a frontend build have
+  # to happen first — same as a fresh local `cargo test` would need.
+  # Native-host targets only (darwin-arm64/linux-amd64/windows-amd64); the
+  # wider cross-compiled matrix (darwin-amd64, linux-arm64) is exercised
+  # by release.yml instead, mirroring MarkDownViewer's own ci.yml vs
+  # release-ffi.yml split.
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: macos-14, target: darwin-arm64}
+          - {os: ubuntu-latest, target: linux-amd64}
+          - {os: windows-latest, target: windows-amd64}
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run: {shell: bash}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with: {components: clippy}
+      - uses: actions/setup-node@v4
+        with: {node-version: "20"}
+      - name: Install Linux Tauri system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf build-essential
+      - name: Fetch vendored libmdviewer
+        run: ./scripts/fetch-libmdviewer.sh ${{ matrix.target }}
+      - name: Build frontend (tauri-build reads frontendDist at cargo-build time)
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+      - run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+      - run: cargo test --manifest-path src-tauri/Cargo.toml

@@ -11,6 +11,11 @@ fn main() {
         (Ok("linux"), Ok("x86_64")) => "linux-amd64",
         (Ok("linux"), Ok("aarch64")) => "linux-arm64",
         (Ok("windows"), Ok("x86_64")) => "windows-amd64",
+        // Additional CI build-matrix target (multi-arch bundling item) —
+        // libmdviewer's own release-ffi.yml doesn't publish this target
+        // yet either, so `vendor/libmdviewer/windows-arm64` won't exist
+        // until it does; see scripts/update-checksums.sh and AGENTS.md.
+        (Ok("windows"), Ok("aarch64")) => "windows-arm64",
         (os, arch) => panic!("unsupported target {:?}-{:?}", os, arch),
     };
     let vendor = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())

@@ -38,9 +38,52 @@ export interface DocModel {
 
 export type ThemeName = "light" | "dark";
 
-/** Renders `markdown` to sanitized, self-contained HTML themed for `theme`. */
-export function renderDocument(markdown: string, theme: ThemeName): Promise<string> {
-  return invoke<string>("render_document", { markdown, theme });
+/** commands.rs `RenderPrefs` — preferences panel toggles (design §9) that affect rendering. Unlike top-level command arguments (which Tauri camelCases automatically), these are plain serde struct fields with no rename attribute, so the wire format matches Rust's own snake_case field names verbatim — same convention as `DocFile.modified_ms`/`TreeNode.is_dir` below. */
+export interface RenderPrefs {
+  mermaid: boolean;
+  math: boolean;
+  allow_raw_html: boolean;
+  prose_typeface: string;
+}
+
+/** Renders `markdown` to sanitized, self-contained HTML themed for `theme`, honoring the live Preferences toggles in `prefs` (omit for library defaults). */
+export function renderDocument(markdown: string, theme: ThemeName, prefs?: RenderPrefs): Promise<string> {
+  return invoke<string>("render_document", { markdown, theme, prefs: prefs ?? null });
+}
+
+/** Export sheet (design §10) — same render path as renderDocument, with `fragment` selecting body-only markup instead of a full self-contained page. */
+export function exportDocument(markdown: string, theme: ThemeName, fragment: boolean, prefs?: RenderPrefs): Promise<string> {
+  return invoke<string>("export_document", { markdown, theme, fragment, prefs: prefs ?? null });
+}
+
+/** Writes `contents` verbatim to `path` — the export sheet's "Export" button, after a native save-dialog pick. */
+export function writeExportFile(path: string, contents: string): Promise<void> {
+  return invoke<void>("write_export_file", { path, contents });
+}
+
+/** commands.rs `SearchMatch`/`SearchResult` — one full-text search hit and its containing result set. */
+export interface SearchMatch {
+  path: string;
+  line: number;
+  snippet: string;
+  match_start: number;
+  match_end: number;
+}
+export interface SearchResult {
+  matches: SearchMatch[];
+  files_matched: number;
+  truncated: boolean;
+}
+
+/** Full-text search (design §3 "Search" sidebar panel) over every markdown/text file under `root`. */
+export function searchWorkspace(
+  root: string,
+  query: string,
+  caseSensitive: boolean,
+  wholeWord: boolean,
+  regexMode: boolean,
+): Promise<SearchResult> {
+  return invoke<SearchResult>("search_workspace", { root, query, caseSensitive, wholeWord, regexMode });
 }
 
 /** Parses `markdown` and returns its outline, word count and read time. */

@@ -12,11 +12,18 @@
 // Outline button and ⌘J.
 //
 // This module is left as main.ts's call site for symmetry with
-// initTitlebar()/initTheme(), and wires the one rail button layout.ts
+// initTitlebar()/initTheme(), and wires the two rail buttons layout.ts
 // doesn't own: Home, which opens the welcome-over-doc overlay (design
-// §2/§11) without touching main.ts's document store.
+// §2/§11) without touching main.ts's document store, and Export, which
+// main.ts supplies a callback for (it owns the active document needed to
+// build the export sheet's title/content).
 import * as layout from "./layout";
 
-export function initRail(): void {
+export interface RailCallbacks {
+  onOpenExport(): void;
+}
+
+export function initRail(cb: RailCallbacks): void {
   document.getElementById("rail-home")?.addEventListener("click", () => layout.openWelcomeOverlay());
+  document.getElementById("rail-export")?.addEventListener("click", () => cb.onOpenExport());
 }

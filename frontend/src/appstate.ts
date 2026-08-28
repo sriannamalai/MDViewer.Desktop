@@ -22,6 +22,19 @@ export interface RecentEntry {
   openedAt: number;
 }
 
+export type ThemeMode = "light" | "dark" | "auto";
+export type ReadingWidth = "narrow" | "medium" | "wide";
+export type ProseTypeface = "sans" | "serif";
+
+/** Preferences panel state (design §9) — kept separate from the top-level fields above since it's a self-contained group added by this task, not the original Task 7 shape. `themeMode` is the *source of truth* for `theme`'s Light/Dark/Auto pick; `theme` itself stays the plain resolved light/dark value everything else (viewer, chrome) already reads. */
+export interface Prefs {
+  themeMode: ThemeMode;
+  readingWidth: ReadingWidth;
+  proseTypeface: ProseTypeface;
+  renderMathDiagrams: boolean;
+  allowRawHtml: boolean;
+}
+
 export interface PersistedState {
   theme: ThemeName;
   layout: LayoutMode;
@@ -31,10 +44,19 @@ export interface PersistedState {
   outlineWidth: number;
   activePanel: PanelName;
   recents: RecentEntry[];
+  prefs: Prefs;
 }
 
 const RECENTS_CAP = 8;
 const SAVE_DEBOUNCE_MS = 300;
+
+const DEFAULT_PREFS: Prefs = {
+  themeMode: "light",
+  readingWidth: "medium",
+  proseTypeface: "sans",
+  renderMathDiagrams: true,
+  allowRawHtml: false,
+};
 
 const DEFAULT_STATE: PersistedState = {
   theme: "light",
@@ -45,6 +67,7 @@ const DEFAULT_STATE: PersistedState = {
   outlineWidth: 236,
   activePanel: "files",
   recents: [],
+  prefs: DEFAULT_PREFS,
 };
 
 let state: PersistedState = { ...DEFAULT_STATE };
@@ -61,6 +84,25 @@ function isPanelName(v: unknown): v is PanelName {
 }
 function clampedNumber(v: unknown, fallback: number, min: number, max: number): number {
   return typeof v === "number" && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : fallback;
+}
+function isThemeMode(v: unknown): v is ThemeMode {
+  return v === "light" || v === "dark" || v === "auto";
+}
+function isReadingWidth(v: unknown): v is ReadingWidth {
+  return v === "narrow" || v === "medium" || v === "wide";
+}
+function isProseTypeface(v: unknown): v is ProseTypeface {
+  return v === "sans" || v === "serif";
+}
+function sanitizePrefs(raw: unknown): Prefs {
+  const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  return {
+    themeMode: isThemeMode(r.themeMode) ? r.themeMode : DEFAULT_PREFS.themeMode,
+    readingWidth: isReadingWidth(r.readingWidth) ? r.readingWidth : DEFAULT_PREFS.readingWidth,
+    proseTypeface: isProseTypeface(r.proseTypeface) ? r.proseTypeface : DEFAULT_PREFS.proseTypeface,
+    renderMathDiagrams: typeof r.renderMathDiagrams === "boolean" ? r.renderMathDiagrams : DEFAULT_PREFS.renderMathDiagrams,
+    allowRawHtml: typeof r.allowRawHtml === "boolean" ? r.allowRawHtml : DEFAULT_PREFS.allowRawHtml,
+  };
 }
 
 /**
@@ -90,6 +132,7 @@ function sanitize(raw: unknown): PersistedState {
     outlineWidth: clampedNumber(r.outlineWidth, DEFAULT_STATE.outlineWidth, 180, 400),
     activePanel: isPanelName(r.activePanel) ? r.activePanel : DEFAULT_STATE.activePanel,
     recents,
+    prefs: sanitizePrefs(r.prefs),
   };
 }
 
@@ -120,6 +163,12 @@ function scheduleSave(): void {
 /** Merges `patch` into the persisted state and (debounce-)saves it. */
 export function update(patch: Partial<PersistedState>): void {
   state = { ...state, ...patch };
+  scheduleSave();
+}
+
+/** Merges `patch` into the persisted prefs group and (debounce-)saves it — preferences.ts's per-row callbacks. */
+export function updatePrefs(patch: Partial<Prefs>): void {
+  state = { ...state, prefs: { ...state.prefs, ...patch } };
   scheduleSave();
 }
 
