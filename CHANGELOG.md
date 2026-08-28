@@ -3,11 +3,12 @@
 All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-This project has not yet tagged a `v1.0.0` release, so everything below is
-grouped under `[Unreleased]`; see `AGENTS.md` for the current pinned
-`libmdviewer` version and architectural decisions.
+See `AGENTS.md` for the current pinned `libmdviewer` version and
+architectural decisions.
 
-## [Unreleased]
+## [0.1.0] - 2026-08-28
+
+First tagged release.
 
 ### Added
 
@@ -96,6 +97,20 @@ grouped under `[Unreleased]`; see `AGENTS.md` for the current pinned
   keyboard shortcuts.
 - Open-error surfacing for a Recent/Explorer entry whose target file or
   folder has since moved or been deleted.
+- **Five release-workflow bugs surfaced by actually cutting this first
+  release** (the pipeline had never run end-to-end before): missing
+  `npm ci` before `cargo tauri build` (its `beforeBuildCommand` only
+  RUNS `npm run build`, never installs); `bundle.icon` listing only
+  the macOS `.icns` despite the full icon set already existing on
+  disk, breaking Linux ("couldn't find a square icon") and Windows
+  ("Couldn't find a .ico icon") packaging; missing `xdg-utils` on the
+  Linux arm64 runner image, breaking the AppImage bundler's
+  `xdg-open` probe; `tauri.windows.conf.json`'s `bundle.resources`
+  hardcoded to the windows-amd64 vendor path (Tauri has no
+  per-CPU-arch config override), breaking the windows-arm64 build;
+  and the Package step's bare `zip -r`, which doesn't exist on
+  Windows Git Bash (switched to `7z`, mirroring MarkDownViewer's
+  release-ffi.yml).
 
 ### Known limitations
 

@@ -140,13 +140,25 @@ Chronologically (see `git log --oneline`):
     (amd64).
 16. **Bumped pinned libmdviewer to v0.11.0** (from v0.10.0) — checksums
     re-verified against the release's published `SHA256SUMS`; no Rust or
-    frontend code changes needed (same six ABI symbols, unchanged and
-    append-only). Enabled the previously-gated `windows-arm64` release job
-    now that the core library ships that native artifact — Rust's MSVC
-    toolchain builds `aarch64-pc-windows-msvc` natively on the
-    `windows-11-arm` hosted runner without the cgo/mingw toolchain gap the
-    core library's Go build hit for the same target.
-
+    frontend code changes needed since the five ABI symbols this app uses
+    are unchanged and append-only. Enabled the previously-gated
+    `windows-arm64` release job now that the core library ships that
+    native artifact — Rust's MSVC toolchain builds
+    `aarch64-pc-windows-msvc` natively on the `windows-11-arm` hosted
+    runner without the cgo/mingw toolchain gap the core library's Go
+    build hit for the same target.
+17. **Tagged and shipped the first real release, `v0.1.0`** — the
+    release pipeline had never actually run end-to-end before this, and
+    surfaced five bugs in one pass (all now fixed, see `CHANGELOG.md`):
+    a missing `npm ci` before `cargo tauri build`; `bundle.icon` only
+    listing the macOS `.icns` (breaking Linux/Windows packaging even
+    though the full icon set already existed on disk); missing
+    `xdg-utils` on the Linux arm64 runner; `tauri.windows.conf.json`'s
+    `bundle.resources` hardcoded to the windows-amd64 vendor path
+    (breaking the new windows-arm64 job); and a bare `zip -r` in the
+    Package step, which doesn't exist on Windows Git Bash. All six
+    targets (darwin-arm64/amd64, linux-amd64/arm64, windows-amd64/arm64)
+    now build and package successfully.
 ## Known limitations (v1, per README)
 - **Release binary embeds the dev vendor rpath** — harmless (bundle also
   resolves via `@executable_path/../Frameworks`) but not cleaned up.
