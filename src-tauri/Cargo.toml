@@ -9,6 +9,9 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
+# Locates the MSVC toolchain (dumpbin.exe/lib.exe) to synthesize an import
+# library for the vendored libmdviewer.dll on Windows — see build.rs.
+cc = "1"
 
 [dependencies]
 tauri = { version = "2", features = [] }

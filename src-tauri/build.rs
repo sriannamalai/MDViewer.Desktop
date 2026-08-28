@@ -1,5 +1,5 @@
 use std::env;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 fn main() {
     let target = match (
@@ -38,7 +38,136 @@ fn main() {
             println!("cargo:rustc-link-arg=-Wl,-rpath,{}", vendor.display());
             println!("cargo:rustc-link-arg=-Wl,-rpath,$ORIGIN");
         }
+        Ok("windows") => {
+            ensure_msvc_import_lib(&vendor, &env::var("TARGET").unwrap());
+        }
         _ => {}
     }
     tauri_build::build();
 }
+
+/// `cargo:rustc-link-lib=dylib=mdviewer` above needs `link.exe` to find an
+/// import library (`mdviewer.lib`) alongside the DLL at link time — that's
+/// how MSVC resolves symbols against a shared library, unlike GNU
+/// toolchains, which can link straight against a bare `.dll`. But
+/// `libmdviewer`'s Go toolchain (`go build -buildmode=c-shared`) only ever
+/// produces the `.dll` and a C header, never an MSVC `.lib` (this is a
+/// long-standing Go cgo limitation, not a fetch-script bug), which is
+/// exactly why the windows-amd64 job started failing with `LNK1181: cannot
+/// open input file 'mdviewer.lib'` the moment CI first exercised this
+/// target (Desktop was macOS-only before this).
+///
+/// This synthesizes that missing import library once (cached in the
+/// vendor dir alongside the `.dll`, which is itself git-ignored /
+/// fetch-script-managed, so nothing here needs to be committed) using the
+/// same dumpbin-then-lib.exe dance Microsoft's own docs recommend for
+/// linking against a DLL-only distribution: `dumpbin /exports` lists the
+/// DLL's exported symbols, which get written to a `.def` file that
+/// `lib.exe /DEF:...` turns into a proper `.lib`. Both tools are located
+/// via `cc`'s MSVC-registry probing (the same mechanism cargo/rustc
+/// themselves use to find `link.exe`), so this works on a bare
+/// `windows-latest` runner without requiring a "Developer Command Prompt"
+/// / `vcvarsall.bat` environment to already be active.
+fn ensure_msvc_import_lib(vendor: &Path, rust_target: &str) {
+    if env::var("CARGO_CFG_TARGET_ENV").as_deref() != Ok("msvc") {
+        return; // GNU-toolchain Windows targets link against the bare .dll directly.
+    }
+    let dll = vendor.join("mdviewer.dll");
+    let lib = vendor.join("mdviewer.lib");
+    if lib.exists() || !dll.exists() {
+        // No .dll (or already generated): either the fetch script hasn't
+        // run yet — the link step below will fail with its own clearer
+        // "cannot open input file" — or a previous build already did this.
+        return;
+    }
+
+    let dumpbin = cc::windows_registry::find_tool(rust_target, "dumpbin.exe").unwrap_or_else(|| {
+        panic!(
+            "dumpbin.exe not found for {rust_target} — install the MSVC Build Tools (or run from \
+             a Developer Command Prompt) so an import library can be generated for {}",
+            dll.display()
+        )
+    });
+    let output = dumpbin
+        .to_command()
+        .arg("/exports")
+        .arg(&dll)
+        .output()
+        .unwrap_or_else(|e| panic!("failed to run dumpbin /exports on {}: {e}", dll.display()));
+    if !output.status.success() {
+        panic!(
+            "dumpbin /exports {} failed:\n{}",
+            dll.display(),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    let exports = parse_dumpbin_exports(&String::from_utf8_lossy(&output.stdout));
+    if exports.is_empty() {
+        panic!("dumpbin reported no exports for {} — cannot generate an import library", dll.display());
+    }
+
+    let def_path = vendor.join("mdviewer.def");
+    let mut def = String::from("LIBRARY mdviewer\nEXPORTS\n");
+    for name in &exports {
+        def.push_str(name);
+        def.push('\n');
+    }
+    std::fs::write(&def_path, &def).unwrap_or_else(|e| panic!("failed to write {}: {e}", def_path.display()));
+
+    let lib_tool = cc::windows_registry::find_tool(rust_target, "lib.exe")
+        .unwrap_or_else(|| panic!("lib.exe not found for {rust_target} — install the MSVC Build Tools"));
+    let machine = if rust_target.starts_with("aarch64") { "ARM64" } else { "X64" };
+    let status = lib_tool
+        .to_command()
+        .arg(format!("/DEF:{}", def_path.display()))
+        .arg(format!("/OUT:{}", lib.display()))
+        .arg(format!("/MACHINE:{machine}"))
+        .status()
+        .unwrap_or_else(|e| panic!("failed to run lib.exe: {e}"));
+    if !status.success() {
+        panic!("lib.exe /DEF:{} failed", def_path.display());
+    }
+    println!("cargo:warning=generated {} from {} ({} exported symbols)", lib.display(), dll.display(), exports.len());
+}
+
+/// Parses `dumpbin /exports` output down to just the exported symbol
+/// names. The table looks like:
+/// ```text
+///     ordinal hint RVA      name
+///
+///           1    0 00001060 mdv_asset
+///           2    1 00001070 mdv_free
+/// ```
+/// so once the header row is seen, every non-blank row's 4th
+/// whitespace-separated field is a name — the table ends at the first
+/// blank line after it starts.
+fn parse_dumpbin_exports(output: &str) -> Vec<String> {
+    let mut names = Vec::new();
+    let mut in_table = false;
+    for line in output.lines() {
+        let trimmed = line.trim();
+        if !in_table {
+            if trimmed.starts_with("ordinal") && trimmed.contains("name") {
+                in_table = true;
+            }
+            continue;
+        }
+        if trimmed.is_empty() {
+            break;
+        }
+        let parts: Vec<&str> = trimmed.split_whitespace().collect();
+        if let Some(name) = parts.get(3)
+            && name.chars().next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+        {
+            names.push((*name).to_string());
+        }
+    }
+    names
+}
+
+// No #[cfg(test)] module here: `cargo test` doesn't execute a crate's
+// build-script (`build.rs` is its own separate compilation unit, not part
+// of `--lib`/`--bins`/`--tests`), so unit tests placed here would never
+// actually run in CI. `parse_dumpbin_exports` was verified by hand against
+// a real `dumpbin /exports` sample instead; the windows-amd64 CI job's
+// first real run against actual dumpbin output is the true test.
