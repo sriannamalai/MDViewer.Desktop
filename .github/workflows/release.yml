@@ -44,7 +44,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf build-essential
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf build-essential xdg-utils
       - name: Fetch vendored libmdviewer
         run: ./scripts/fetch-libmdviewer.sh ${{ matrix.vendor-target }}
       # cargo tauri build's beforeBuildCommand only RUNS `npm run build` —
@@ -84,7 +84,13 @@ jobs:
           # it; copy it explicitly if present.
           if [ -d "$bundle_dir/macos" ]; then cp -R "$bundle_dir"/macos/*.app "dist/${out}/" 2>/dev/null || true; fi
           zip_name="${out}.zip"
-          (cd dist && zip -r "../${zip_name}" "${out}")
+          # Windows runners' Git Bash has no `zip` — use 7z (preinstalled)
+          # there instead, matching MarkDownViewer's release-ffi.yml.
+          if [[ "${{ matrix.artifact }}" == windows-* ]]; then
+            (cd "dist/${out}" && 7z a "../../${zip_name}" .)
+          else
+            (cd dist && zip -r "../${zip_name}" "${out}")
+          fi
           echo "ZIP=${zip_name}" >> "$GITHUB_ENV"
       - name: Upload to release
         env: {GH_TOKEN: "${{ github.token }}"}
@@ -122,6 +128,14 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
         working-directory: frontend
+      # tauri.windows.conf.json's bundle.resources is hardcoded to the
+      # windows-amd64 vendor path (Tauri has no per-CPU-arch config
+      # override, only per-OS) — rewrite it for this arm64 build so the
+      # installer embeds the matching-arch DLL instead of a missing (or
+      # wrong-arch) one. Same pattern as the macOS x86_64 cross-build
+      # above.
+      - name: Point Windows arm64 build at the windows-arm64 dll
+        run: sed -i 's/windows-amd64/windows-arm64/' src-tauri/tauri.windows.conf.json
       - run: cargo tauri build --target aarch64-pc-windows-msvc
       - name: Package
         run: |
@@ -131,7 +145,8 @@ jobs:
           mkdir -p "dist/${out}"
           find "$bundle_dir" -mindepth 2 -maxdepth 2 -type f \( -name '*.msi' -o -name '*.exe' \) -exec cp {} "dist/${out}/" \;
           zip_name="${out}.zip"
-          (cd dist && zip -r "../${zip_name}" "${out}")
+          # See the build job's Package step: Git Bash has no `zip` on Windows.
+          (cd "dist/${out}" && 7z a "../../${zip_name}" .)
           echo "ZIP=${zip_name}" >> "$GITHUB_ENV"
       - env: {GH_TOKEN: "${{ github.token }}"}
         run: gh release upload "$TAG" "$ZIP" --clobber
