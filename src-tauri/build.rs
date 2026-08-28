@@ -113,9 +113,17 @@ fn ensure_msvc_import_lib(vendor: &Path, rust_target: &str) {
             String::from_utf8_lossy(&output.stderr)
         );
     }
-    let exports = parse_dumpbin_exports(&String::from_utf8_lossy(&output.stdout));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let exports = parse_dumpbin_exports(&stdout);
     if exports.is_empty() {
-        panic!("dumpbin reported no exports for {} — cannot generate an import library", dll.display());
+        // Include the raw output so a CI failure is immediately diagnosable
+        // instead of requiring another round trip to see what dumpbin
+        // actually printed.
+        panic!(
+            "dumpbin reported no exports for {} — cannot generate an import library.\n--- dumpbin /exports output ---\n{}\n--- end output ---",
+            dll.display(),
+            stdout
+        );
     }
 
     let def_path = vendor.join("mdviewer.def");
