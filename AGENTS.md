@@ -226,6 +226,22 @@ Chronologically (see `git log --oneline`):
   webview just omits the footer rather than erroring. PDF export still
   goes through the OS print dialog rather than programmatic PDF
   generation (no headless-rendering dependency pulled in for v1).
+  Researched programmatic PDF export (issue #7): the native APIs exist
+  (`WKWebView.createPDFWithConfiguration` on macOS 11+, confirmed working
+  end-to-end against a standalone proof-of-concept using this project's
+  own transitively-pinned `objc2`/`objc2-web-kit`/`block2` versions;
+  `ICoreWebView2_7::PrintToPdf` on Windows; WebKitGTK's print-to-file path
+  is still unresolved upstream as of `tauri-apps/wry#1317`, an open draft
+  PR) but wiring it in isn't safe yet: this app's exported HTML renders
+  Mermaid diagrams client-side via `mermaid.initialize({startOnLoad:true})`
+  asynchronously *after* the page finishes loading, so the only cheap
+  readiness signal (`WKWebView.isLoading` going `false`) fires before
+  Mermaid has necessarily finished — a naive hidden-webview capture would
+  race Mermaid and risk shipping PDFs with blank diagrams. A real fix
+  needs a readiness signal injected into the exported HTML plus
+  `WKWebView.evaluateJavaScript` polling, which is more new native surface
+  than this pass could verify without GUI-automation tooling to confirm a
+  real Mermaid document renders correctly in the output.
 
 ## Next items (proposed, not yet planned in detail)
 1. A real pixel-level Mermaid/KaTeX visual pass on the packaged `.app`
@@ -233,7 +249,12 @@ Chronologically (see `git log --oneline`):
    `windows-arm64` release job (unverified by an actual tagged release
    run as of this pass — the Rust/MSVC toolchain assumption should hold,
    but treat the first real `windows-arm64` release build as a smoke test).
-2. Track the core library toward native-render-tree adoption for
+2. Programmatic PDF export (issue #7, macOS first): inject a
+   Mermaid-rendering-complete signal into the exported HTML and poll it
+   via `WKWebView.evaluateJavaScript` before calling `createPDF`, so the
+   capture can't race the diagram rendering it needs to wait on — see
+   "Known limitations" above for what was already validated.
+3. Track the core library toward native-render-tree adoption for
    Desktop — **deliberately deprioritized**; see "Architectural
    specialization" above for why this isn't expected to happen absent a
    design change away from the current HTML/webview spec.
