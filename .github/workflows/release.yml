@@ -45,6 +45,13 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf build-essential xdg-utils
+          # Ubuntu 24.04 (both ubuntu-latest and ubuntu-24.04-arm) dropped
+          # libfuse2, so the AppImage-bundled linuxdeploy/linuxdeploy-plugin-appimage
+          # binaries can't mount themselves via FUSE ("failed to run
+          # linuxdeploy"). APPIMAGE_EXTRACT_AND_RUN makes every AppImage
+          # self-extract-and-run instead, sidestepping FUSE entirely — the
+          # standard workaround for CI containers/runners without it.
+          echo "APPIMAGE_EXTRACT_AND_RUN=1" >> "$GITHUB_ENV"
       - name: Fetch vendored libmdviewer
         run: ./scripts/fetch-libmdviewer.sh ${{ matrix.vendor-target }}
       # cargo tauri build's beforeBuildCommand only RUNS `npm run build` —
