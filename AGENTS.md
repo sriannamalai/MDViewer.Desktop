@@ -210,7 +210,22 @@ Chronologically (see `git log --oneline`):
 21. **Tagged and shipped `v0.2.0`** — bundles items 18–20 above (export
     Options checklist, the dev-rpath release fix, and the `cargo fmt`/CI
     pass). See `CHANGELOG.md` for the user-facing summary.
-22. **Dropped `appimage` from Linux's `bundle.targets`** — cutting
+22. **Fixed Windows releases not launching at all** — `tauri.windows
+    .conf.json`'s `bundle.resources` used a bare relative-path string
+    (`"../vendor/libmdviewer/windows-amd64/libmdviewer.dll"`), which
+    NSIS packaged by literally preserving the `../` traversal as an
+    `_up_\vendor\...\` subfolder instead of placing the DLL next to
+    `mdviewer-desktop.exe` — so every installed release immediately
+    failed with "libmdviewer.dll was not found". Fixed by remapping the
+    resource to a flat destination filename. Found and confirmed fixed
+    via an actual install + launch on a real Windows 11 arm64 VM
+    (Parallels on the dev machine) — the release pipeline had only ever
+    verified that packaging *completed*, never that the installed app
+    actually *ran*. Both windows-amd64 and windows-arm64 shared this
+    bug (the arm64 job just does a string substitution on the same
+    file), so this was a release-blocking regression on Windows since
+    Windows support was first added, not something new to `v0.2.0`.
+23. **Dropped `appimage` from Linux's `bundle.targets`**
     `v0.2.0` end-to-end for the first time surfaced `linuxdeploy`
     (Tauri's AppImage bundler, itself an AppImage) failing with `failed
     to run linuxdeploy` on both Linux release runners
@@ -260,15 +275,16 @@ Chronologically (see `git log --oneline`):
   real Mermaid document renders correctly in the output.
 - **Linux release builds ship `.deb` only, not `.AppImage`** —
   `linuxdeploy` fails to run on the GitHub-hosted Linux release
-  runners (see item 22 above, a still-open upstream Tauri/AppImage
+  runners (see item 23 above, a still-open upstream Tauri/AppImage
   issue on Ubuntu 24.04); revisit once that bundler issue clears.
 
 ## Next items (proposed, not yet planned in detail)
 1. A real pixel-level Mermaid/KaTeX visual pass on the packaged `.app`
-   (see "Known limitations" above), and the same for the newly-enabled
-   `windows-arm64` release job (unverified by an actual tagged release
-   run as of this pass — the Rust/MSVC toolchain assumption should hold,
-   but treat the first real `windows-arm64` release build as a smoke test).
+   (see "Known limitations" above). The `windows-arm64` release build
+   itself has now been install+launch verified on a real Windows 11
+   arm64 VM (item 22 above caught and fixed a launch-blocking bug), but
+   nobody has yet eyeballed a real Mermaid+KaTeX document rendering
+   correctly on that platform specifically.
 2. Programmatic PDF export (issue #7, macOS first): inject a
    Mermaid-rendering-complete signal into the exported HTML and poll it
    via `WKWebView.evaluateJavaScript` before calling `createPDF`, so the

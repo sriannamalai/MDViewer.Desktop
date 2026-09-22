@@ -25,6 +25,19 @@ round of release/CI hygiene fixes.
 
 ### Fixed
 
+- **Windows releases failed to launch at all** ("The code execution
+  cannot proceed because libmdviewer.dll was not found") —
+  `tauri.windows.conf.json`'s `bundle.resources` used a bare
+  `"../vendor/libmdviewer/windows-amd64/libmdviewer.dll"` string entry,
+  which NSIS/Tauri packaged by preserving the `../` traversal literally
+  as an `_up_\vendor\libmdviewer\windows-amd64\` subfolder inside the
+  install directory instead of placing the DLL next to the executable
+  — exactly where Windows' default DLL search order looks first. Fixed
+  by remapping the resource to a flat destination
+  (`{"../vendor/...": "libmdviewer.dll"}`). Found via an actual install
+  + launch on a real Windows 11 arm64 VM (Parallels) — this had never
+  been end-to-end tested before, since the release pipeline only
+  verified that packaging *completed*, never that the result *ran*.
 - **Release binaries no longer embed the development vendor rpath** —
   `build.rs` now only adds the `vendor/libmdviewer/<target>/` rpath for
   debug/dev builds; a `cargo build --release` binary carries only the
