@@ -6,6 +6,48 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 See `AGENTS.md` for the current pinned `libmdviewer` version and
 architectural decisions.
 
+## [0.2.0] - 2026-09-22
+
+Export sheet Options checklist wired to the render pipeline, plus a
+round of release/CI hygiene fixes.
+
+### Added
+
+- **Export sheet's "Options" checklist (design §10) is fully wired** —
+  "Include heading anchors" maps to the library's own `headingAnchors`
+  option; "Print theme (light)" forces the export's render theme to
+  light independent of the app's live theme; "Page numbers" appends a
+  `@media print` `@page` margin-box CSS counter ("Page X of Y", CSS
+  Paged Media Level 3); "Table of contents" generates a linked TOC from
+  the document's heading outline and splices it into the exported
+  output, forcing heading anchors on so its links always resolve.
+  Closes #3.
+
+### Fixed
+
+- **Release binaries no longer embed the development vendor rpath** —
+  `build.rs` now only adds the `vendor/libmdviewer/<target>/` rpath for
+  debug/dev builds; a `cargo build --release` binary carries only the
+  bundle-relative `@executable_path/../Frameworks` rpath. Closes #4.
+
+### Changed
+
+- **Project-wide `cargo fmt` pass**, and CI now runs `cargo fmt --check`
+  on every push/PR. Closes #6.
+
+### Known limitations
+
+- **Programmatic PDF export** (issue #7) was researched in depth — a
+  working `WKWebView.createPDF`-based proof of concept exists for
+  macOS — but not shipped: this app's exported HTML renders Mermaid
+  diagrams asynchronously (`mermaid.initialize({startOnLoad:true})`),
+  and without a proper readiness-signal/polling mechanism a naive
+  hidden-webview PDF capture risks shipping blank diagrams. Deferred
+  pending that mechanism.
+- **Pixel-level Mermaid+KaTeX screenshot verification** across all
+  three target OSes, and a first real tagged `windows-arm64` release,
+  still need manual multi-platform QA (issue #5).
+
 ## [0.1.0] - 2026-08-28
 
 First tagged release.

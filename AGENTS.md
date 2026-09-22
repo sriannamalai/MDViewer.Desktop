@@ -9,7 +9,7 @@ app: a **Tauri 2** shell (Rust backend + a small vanilla-TS/Vite frontend,
 no framework) over `libmdviewer`, the C-ABI build of the
 [MarkDownViewer](https://github.com/sriannamalai/markdownviewer) Go
 library. Frameless window with fully custom-drawn chrome so the app looks
-pixel-identical on every OS. 19 commits, version `0.1.0`, still pre-v1.
+pixel-identical on every OS. 21 commits, version `0.2.0`, still pre-v1.
 
 ## The sibling repos (the bigger picture)
 - **`~/Developer/OpenSource/MarkDownViewer`** — the rendering engine this
@@ -207,6 +207,9 @@ Chronologically (see `git log --oneline`):
     didn't fight the existing manual formatting choices badly enough to
     warrant one); `cargo build`/`cargo test`/`cargo clippy` and the
     frontend build were all re-verified green afterward.
+21. **Tagged and shipped `v0.2.0`** — bundles items 18–20 above (export
+    Options checklist, the dev-rpath release fix, and the `cargo fmt`/CI
+    pass). See `CHANGELOG.md` for the user-facing summary.
 ## Known limitations (v1, per README)
 - **Mermaid/KaTeX combined-render verification is structural, not a
   pixel-level screenshot pass.** A new Rust test
