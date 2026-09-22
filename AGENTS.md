@@ -280,11 +280,13 @@ Chronologically (see `git log --oneline`):
 
 ## Next items (proposed, not yet planned in detail)
 1. A real pixel-level Mermaid/KaTeX visual pass on the packaged `.app`
-   (see "Known limitations" above). The `windows-arm64` release build
-   itself has now been install+launch verified on a real Windows 11
-   arm64 VM (item 22 above caught and fixed a launch-blocking bug), but
-   nobody has yet eyeballed a real Mermaid+KaTeX document rendering
-   correctly on that platform specifically.
+   (macOS) and `.deb` (Linux) is still outstanding — **windows-arm64 is
+   now done**: after fixing item 22's launch bug, a real Mermaid
+   diagram (flowchart with a decision branch) and both inline and
+   block KaTeX math were confirmed rendering correctly, with the
+   app's own styling, on an actual Windows 11 arm64 VM (Parallels on
+   the dev machine) — see issue #5's GitHub comment for the verified
+   build and what was checked.
 2. Programmatic PDF export (issue #7, macOS first): inject a
    Mermaid-rendering-complete signal into the exported HTML and poll it
    via `WKWebView.evaluateJavaScript` before calling `createPDF`, so the
