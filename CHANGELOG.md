@@ -34,6 +34,15 @@ round of release/CI hygiene fixes.
 
 - **Project-wide `cargo fmt` pass**, and CI now runs `cargo fmt --check`
   on every push/PR. Closes #6.
+- **Linux release builds now ship `.deb` only, not `.AppImage`.**
+  `linuxdeploy` (Tauri's AppImage bundler) is itself an AppImage and
+  fails to run (`failed to run linuxdeploy`) on the GitHub-hosted
+  `ubuntu-latest`/`ubuntu-24.04-arm` runners — a still-open upstream
+  issue (Ubuntu 24.04 dropped `libfuse2`, and neither installing
+  `libfuse2t64` nor `APPIMAGE_EXTRACT_AND_RUN=1` reliably fixes it in
+  this CI environment). `.deb` bundles cleanly without `linuxdeploy`
+  and covers the Debian/Ubuntu majority of the Linux desktop audience;
+  AppImage support can return once the upstream bundler issue clears.
 
 ### Known limitations
 

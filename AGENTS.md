@@ -210,6 +210,19 @@ Chronologically (see `git log --oneline`):
 21. **Tagged and shipped `v0.2.0`** — bundles items 18–20 above (export
     Options checklist, the dev-rpath release fix, and the `cargo fmt`/CI
     pass). See `CHANGELOG.md` for the user-facing summary.
+22. **Dropped `appimage` from Linux's `bundle.targets`** — cutting
+    `v0.2.0` end-to-end for the first time surfaced `linuxdeploy`
+    (Tauri's AppImage bundler, itself an AppImage) failing with `failed
+    to run linuxdeploy` on both Linux release runners
+    (`ubuntu-latest`/`ubuntu-24.04-arm`). Tried both documented
+    workarounds — installing `libfuse2`/`libfuse2t64` and setting
+    `APPIMAGE_EXTRACT_AND_RUN=1` — neither fixed it (a still-open
+    upstream issue: Ubuntu 24.04 dropped `libfuse2`, and other projects
+    hitting the same failure report the env var doesn't reliably
+    propagate through Tauri's linuxdeploy invocation either).
+    `tauri.conf.json`'s `bundle.targets` now lists `deb` only for
+    Linux; `.deb` bundles without invoking `linuxdeploy` at all and
+    covers the Debian/Ubuntu majority of the desktop Linux audience.
 ## Known limitations (v1, per README)
 - **Mermaid/KaTeX combined-render verification is structural, not a
   pixel-level screenshot pass.** A new Rust test
@@ -245,6 +258,10 @@ Chronologically (see `git log --oneline`):
   `WKWebView.evaluateJavaScript` polling, which is more new native surface
   than this pass could verify without GUI-automation tooling to confirm a
   real Mermaid document renders correctly in the output.
+- **Linux release builds ship `.deb` only, not `.AppImage`** —
+  `linuxdeploy` fails to run on the GitHub-hosted Linux release
+  runners (see item 22 above, a still-open upstream Tauri/AppImage
+  issue on Ubuntu 24.04); revisit once that bundler issue clears.
 
 ## Next items (proposed, not yet planned in detail)
 1. A real pixel-level Mermaid/KaTeX visual pass on the packaged `.app`
