@@ -191,9 +191,16 @@ Chronologically (see `git log --oneline`):
     AST's `anchorId`) and splices it into the rendered output, forcing
     heading anchors on for that export regardless of the other toggle's
     state so its links always resolve.
+19. **Release binary no longer embeds the dev vendor rpath** — `build.rs`
+    now gates the `vendor/libmdviewer/<target>/` rpath (macOS/Linux) behind
+    `PROFILE=debug` (cargo sets this for both `cargo build`/`cargo tauri
+    dev` and `cargo test`, but not `--release`), so a `--release` binary's
+    Mach-O/ELF only carries the relocatable `@executable_path/../Frameworks`
+    (macOS) / `$ORIGIN` (Linux) rpath it actually needs once packaged.
+    Verified with `otool -l` on a `cargo build --release` binary: the local
+    vendor path is gone, the Frameworks rpath remains, and dev/test builds
+    are unaffected (still resolve straight from the vendor dir).
 ## Known limitations (v1, per README)
-- **Release binary embeds the dev vendor rpath** — harmless (bundle also
-  resolves via `@executable_path/../Frameworks`) but not cleaned up.
 - **Mermaid/KaTeX combined-render verification is structural, not a
   pixel-level screenshot pass.** A new Rust test
   (`render_document_combines_mermaid_and_katex_without_clobbering_either`

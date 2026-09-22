@@ -67,10 +67,6 @@ for the current gaps in that pipeline.
 
 ## Known limitations (v1)
 
-- **The release binary embeds the dev vendor rpath.** It's harmless (the
-  bundle also resolves `libmdviewer` via `@executable_path/../Frameworks`
-  and runs standalone), but cleaning the stale rpath out of the release
-  binary itself is deferred.
 - **Mermaid/KaTeX rendering inside the packaged `.app` has been verified
   structurally** (a Rust test renders both together through the exact FFI
   path the bundle uses, and the packaged `.app`/`.dmg` launch

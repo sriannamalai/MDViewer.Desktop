@@ -23,19 +23,31 @@ fn main() {
         .join("vendor/libmdviewer")
         .join(target)
         .canonicalize()
-        .unwrap_or_else(|_| panic!("vendor/libmdviewer/{target} missing — run scripts/fetch-libmdviewer.sh"));
+        .unwrap_or_else(|_| {
+            panic!("vendor/libmdviewer/{target} missing — run scripts/fetch-libmdviewer.sh")
+        });
     println!("cargo:rustc-link-search=native={}", vendor.display());
     println!("cargo:rustc-link-lib=dylib=mdviewer");
     // Dev/test binaries resolve via the vendor dir; bundled apps via
-    // Contents/Frameworks (Task 8 copies the dylib there).
+    // Contents/Frameworks (Task 8 copies the dylib there). The vendor-dir
+    // rpath itself is dev-only (`PROFILE=debug`, set by cargo for both
+    // `cargo build`/`cargo tauri dev` and `cargo test`) — a `--release`
+    // build has no business embedding a path from the machine that built
+    // it, so the release Mach-O/ELF binary only carries the relocatable
+    // app-relative rpath it actually needs when packaged (see issue #4).
+    let is_debug = env::var("PROFILE").as_deref() == Ok("debug");
     #[allow(clippy::single_match)]
     match env::var("CARGO_CFG_TARGET_OS").as_deref() {
         Ok("macos") => {
-            println!("cargo:rustc-link-arg=-Wl,-rpath,{}", vendor.display());
+            if is_debug {
+                println!("cargo:rustc-link-arg=-Wl,-rpath,{}", vendor.display());
+            }
             println!("cargo:rustc-link-arg=-Wl,-rpath,@executable_path/../Frameworks");
         }
         Ok("linux") => {
-            println!("cargo:rustc-link-arg=-Wl,-rpath,{}", vendor.display());
+            if is_debug {
+                println!("cargo:rustc-link-arg=-Wl,-rpath,{}", vendor.display());
+            }
             println!("cargo:rustc-link-arg=-Wl,-rpath,$ORIGIN");
         }
         Ok("windows") => {
@@ -137,11 +149,17 @@ fn ensure_msvc_import_lib(vendor: &Path, rust_target: &str) {
         def.push_str(name);
         def.push('\n');
     }
-    std::fs::write(&def_path, &def).unwrap_or_else(|e| panic!("failed to write {}: {e}", def_path.display()));
+    std::fs::write(&def_path, &def)
+        .unwrap_or_else(|e| panic!("failed to write {}: {e}", def_path.display()));
 
-    let lib_tool = cc::windows_registry::find_tool(rust_target, "lib.exe")
-        .unwrap_or_else(|| panic!("lib.exe not found for {rust_target} — install the MSVC Build Tools"));
-    let machine = if rust_target.starts_with("aarch64") { "ARM64" } else { "X64" };
+    let lib_tool = cc::windows_registry::find_tool(rust_target, "lib.exe").unwrap_or_else(|| {
+        panic!("lib.exe not found for {rust_target} — install the MSVC Build Tools")
+    });
+    let machine = if rust_target.starts_with("aarch64") {
+        "ARM64"
+    } else {
+        "X64"
+    };
     let status = lib_tool
         .to_command()
         .arg(format!("/DEF:{}", def_path.display()))
@@ -152,7 +170,12 @@ fn ensure_msvc_import_lib(vendor: &Path, rust_target: &str) {
     if !status.success() {
         panic!("lib.exe /DEF:{} failed", def_path.display());
     }
-    println!("cargo:warning=generated {} from {} ({} exported symbols)", lib.display(), dll.display(), exports.len());
+    println!(
+        "cargo:warning=generated {} from {} ({} exported symbols)",
+        lib.display(),
+        dll.display(),
+        exports.len()
+    );
 }
 
 /// The generated `mdviewer.lib` above only satisfies the *linker*; at
@@ -173,7 +196,9 @@ fn copy_dll_for_runtime(vendor: &Path) {
     // grandparent is target/<profile>, where cargo places the main
     // binary, and .../deps holds cargo test's own binaries.
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
-    let Some(profile_dir) = out_dir.ancestors().nth(3) else { return };
+    let Some(profile_dir) = out_dir.ancestors().nth(3) else {
+        return;
+    };
     for dest_dir in [profile_dir.to_path_buf(), profile_dir.join("deps")] {
         let _ = std::fs::create_dir_all(&dest_dir);
         let _ = std::fs::copy(&dll, dest_dir.join("libmdviewer.dll"));
@@ -215,7 +240,10 @@ fn parse_dumpbin_exports(output: &str) -> Vec<String> {
         }
         let parts: Vec<&str> = trimmed.split_whitespace().collect();
         if let Some(name) = parts.get(3)
-            && name.chars().next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+            && name
+                .chars()
+                .next()
+                .is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
         {
             names.push((*name).to_string());
         }
