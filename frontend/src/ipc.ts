@@ -27,6 +27,8 @@ export interface OutlineItem {
   level: number;
   text: string;
   line: number;
+  /** Slug `id` assigned at parse time (independent of the `headingAnchors` render option) — used by the export sheet's "Table of contents" option. Empty if unavailable. */
+  anchor_id: string;
 }
 
 /** docmodel.rs `DocModel` — the analyzed shape of a parsed document. */
@@ -51,9 +53,23 @@ export function renderDocument(markdown: string, theme: ThemeName, prefs?: Rende
   return invoke<string>("render_document", { markdown, theme, prefs: prefs ?? null });
 }
 
-/** Export sheet (design §10) — same render path as renderDocument, with `fragment` selecting body-only markup instead of a full self-contained page. */
-export function exportDocument(markdown: string, theme: ThemeName, fragment: boolean, prefs?: RenderPrefs): Promise<string> {
-  return invoke<string>("export_document", { markdown, theme, fragment, prefs: prefs ?? null });
+/** commands.rs `ExportOptions` — the export sheet's "Options" checklist (design §10). Plain serde struct fields with no rename attribute (same convention as `RenderPrefs` above), so the wire format matches Rust's snake_case field names verbatim. */
+export interface ExportOptions {
+  heading_anchors: boolean;
+  print_theme_light: boolean;
+  page_numbers: boolean;
+  table_of_contents: boolean;
+}
+
+/** Export sheet (design §10) — same render path as renderDocument, with `fragment` selecting body-only markup instead of a full self-contained page, and `options` wiring the "Options" checklist into the render pipeline (omit for the checklist's own defaults). */
+export function exportDocument(
+  markdown: string,
+  theme: ThemeName,
+  fragment: boolean,
+  prefs?: RenderPrefs,
+  options?: ExportOptions,
+): Promise<string> {
+  return invoke<string>("export_document", { markdown, theme, fragment, prefs: prefs ?? null, options: options ?? null });
 }
 
 /** Writes `contents` verbatim to `path` — the export sheet's "Export" button, after a native save-dialog pick. */

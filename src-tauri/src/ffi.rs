@@ -38,6 +38,10 @@ pub struct RenderOptions {
     /// override the default sans-serif prose font with the bundled serif
     /// typeface.
     pub extra_css: Option<String>,
+    /// Export sheet's "Include heading anchors" option (design §10) —
+    /// library default is `true` (slug `id` attributes on headings), so
+    /// this only needs to appear in the emitted JSON when *disabled*.
+    pub heading_anchors: bool,
 }
 
 impl Default for RenderOptions {
@@ -52,6 +56,7 @@ impl Default for RenderOptions {
             allow_raw_html: false,
             fragment: false,
             extra_css: None,
+            heading_anchors: true,
         }
     }
 }
@@ -92,6 +97,9 @@ impl RenderOptions {
             && !css.is_empty()
         {
             obj.insert("extraCss".into(), css.clone().into());
+        }
+        if !self.heading_anchors {
+            obj.insert("headingAnchors".into(), false.into());
         }
         serde_json::Value::Object(obj).to_string()
     }
@@ -238,5 +246,20 @@ mod tests {
         let opts = RenderOptions { theme: "neon".into(), ..Default::default() };
         let e = render("# x\n", &opts).unwrap_err();
         assert!(!e.0.is_empty());
+    }
+
+    #[test]
+    fn heading_anchors_default_true_omitted_from_json() {
+        let json = RenderOptions::default().to_json();
+        assert!(!json.contains("headingAnchors"), "must omit library-default headingAnchors:true: {json}");
+    }
+
+    #[test]
+    fn heading_anchors_disabled_omits_id_attributes() {
+        let opts = RenderOptions { heading_anchors: false, ..Default::default() };
+        let json = opts.to_json();
+        assert!(json.contains("\"headingAnchors\":false"), "{json}");
+        let html = render("# Title\n", &opts).unwrap();
+        assert!(!html.contains("id=\"title\""), "expected no anchor id: {html}");
     }
 }

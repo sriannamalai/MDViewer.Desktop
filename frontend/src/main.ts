@@ -567,7 +567,8 @@ function openExportOverlay(): void {
   layout.openOverlay((host) =>
     exportSheetUi.mount(host, tab.name, getTheme(), {
       onClose: () => layout.closeOverlay(),
-      renderExport: (fragment) => ipc.exportDocument(tab.content, getTheme(), fragment, currentRenderPrefs()),
+      renderExport: (fragment, options) =>
+        ipc.exportDocument(tab.content, getTheme(), fragment, currentRenderPrefs(), options),
       onError: (message) => showOpenError(`Export failed — ${message}`),
     }),
   );

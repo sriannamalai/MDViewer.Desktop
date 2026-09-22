@@ -178,6 +178,19 @@ Chronologically (see `git log --oneline`):
     Package step, which doesn't exist on Windows Git Bash. All six
     targets (darwin-arm64/amd64, linux-amd64/arm64, windows-amd64/arm64)
     now build and package successfully.
+18. **Export sheet's "Options" checklist wired to the render pipeline**
+    (`commands.rs`'s new `export_document` parameter, `ExportOptions`) —
+    "Include heading anchors" maps straight to the library's own
+    `headingAnchors` option (new `RenderOptions::heading_anchors` field in
+    `ffi.rs`); "Print theme (light)" overrides the theme used for that
+    export only, independent of the app's live theme; "Page numbers"
+    appends a `@media print` `@page` margin-box CSS counter ("Page X of
+    Y" — CSS Paged Media Level 3, Chromium 131+/Safari 18.2+); "Table of
+    contents" builds a linked TOC from the document's heading outline
+    (`docmodel::OutlineItem` grew an `anchor_id` field, sourced from the
+    AST's `anchorId`) and splices it into the rendered output, forcing
+    heading anchors on for that export regardless of the other toggle's
+    state so its links always resolve.
 ## Known limitations (v1, per README)
 - **Release binary embeds the dev vendor rpath** — harmless (bundle also
   resolves via `@executable_path/../Frameworks`) but not cleaned up.
@@ -192,26 +205,26 @@ Chronologically (see `git log --oneline`):
   capture) should still eyeball a real Mermaid+KaTeX document in the
   packaged app before tagging a release.
 - **Export sheet's "Options" checklist** (heading anchors / print theme /
-  page numbers / table of contents, per design §10) is not wired to real
-  toggles — none of the current render pipeline's options map onto them
-  1:1 yet. PDF export goes through the OS print dialog rather than
-  programmatic PDF generation (no headless-rendering dependency pulled in
-  for v1).
+  page numbers / table of contents, per design §10) is wired into the
+  render pipeline as of item 18 below (`commands.rs`'s `ExportOptions`).
+  "Page numbers" relies on CSS Paged Media Level 3 margin-box support
+  (Chromium 131+/Safari 18.2+, shipped late 2024) — an older bundled
+  webview just omits the footer rather than erroring. PDF export still
+  goes through the OS print dialog rather than programmatic PDF
+  generation (no headless-rendering dependency pulled in for v1).
 - **No `cargo fmt --check` in CI.** The pre-existing codebase isn't
   rustfmt-clean (verified locally), so adding the check now would fail on
   unrelated code; a project-wide `cargo fmt` pass is a reasonable
   separate follow-up before turning this on.
 
 ## Next items (proposed, not yet planned in detail)
-1. Wire the export sheet's Options checklist to real render toggles where
-   a corresponding library option exists.
-2. A real pixel-level Mermaid/KaTeX visual pass on the packaged `.app`
+1. A real pixel-level Mermaid/KaTeX visual pass on the packaged `.app`
    (see "Known limitations" above), and the same for the newly-enabled
    `windows-arm64` release job (unverified by an actual tagged release
    run as of this pass — the Rust/MSVC toolchain assumption should hold,
    but treat the first real `windows-arm64` release build as a smoke test).
-3. Project-wide `cargo fmt` pass, then turn on a `fmt` CI job.
-4. Track the core library toward native-render-tree adoption for
+2. Project-wide `cargo fmt` pass, then turn on a `fmt` CI job.
+3. Track the core library toward native-render-tree adoption for
    Desktop — **deliberately deprioritized**; see "Architectural
    specialization" above for why this isn't expected to happen absent a
    design change away from the current HTML/webview spec.

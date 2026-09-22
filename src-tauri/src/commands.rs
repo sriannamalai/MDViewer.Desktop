@@ -80,6 +80,103 @@ fn typeface_extra_css(prose_typeface: &str) -> Option<String> {
     }
 }
 
+/// Export sheet's "Options" checklist (design §10) — the four checkboxes
+/// next to the Format cards. Defaults mirror the design prototype's
+/// starting state (`design/reference/MarkdownViewer.dc.html`'s
+/// `exportSheet()`): heading anchors/print theme/page numbers on,
+/// table of contents off. `#[serde(default)]` so an older frontend build
+/// (or a request that omits the object entirely) still exports exactly
+/// like before this option set existed.
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(default)]
+pub struct ExportOptions {
+    pub heading_anchors: bool,
+    /// Forces the export to render in the light theme regardless of the
+    /// app's currently active theme — shared/printed output defaults to
+    /// light independent of how the user reads on-screen.
+    pub print_theme_light: bool,
+    /// Appends print-only CSS (a `@page` margin-box page counter) so a
+    /// PDF export — or a self-contained HTML export later printed by its
+    /// recipient — gets a "Page X of Y" footer. Requires a print engine
+    /// with CSS Paged Media Level 3 margin-box support (Chromium
+    /// 131+/Safari 18.2+ shipped this in late 2024; Firefox has none as
+    /// of this writing). This app's bundled webviews
+    /// (WKWebView/WebView2/WebKitGTK) on a current OS clear that bar; an
+    /// engine that doesn't just silently omits the footer rather than
+    /// erroring — the CSS at-rule is simply ignored.
+    pub page_numbers: bool,
+    /// Prepends a linked table of contents built from the document's
+    /// heading outline (`docmodel::analyze`). Forces `heading_anchors` on
+    /// for this export regardless of that field's own value — a table of
+    /// contents with no anchors to land on isn't useful.
+    pub table_of_contents: bool,
+}
+
+impl Default for ExportOptions {
+    fn default() -> Self {
+        ExportOptions { heading_anchors: true, print_theme_light: true, page_numbers: true, table_of_contents: false }
+    }
+}
+
+/// See `ExportOptions::page_numbers`. Wrapped in `@media print` so it's
+/// inert in the on-screen/self-contained-HTML case and only takes effect
+/// when the document is actually printed (this app's own PDF flow, or a
+/// recipient printing an exported HTML file later).
+const PAGE_NUMBER_CSS: &str = "@media print{@page{margin:0.75in;@bottom-center{content:\"Page \" counter(page) \" of \" counter(pages);font-family:'JetBrains Mono',monospace;font-size:9pt;color:#888;}}}";
+
+fn escape_html_text(s: &str) -> String {
+    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
+}
+
+/// Builds the "Table of contents" block (design §10) from a document's
+/// heading outline. Deliberately a flat `<ul>` rather than a nested one
+/// per level — a real document can skip levels (an H1 followed directly
+/// by an H3), which a naive open/close-nesting builder mishandles; a
+/// `md-toc-l<level>` class drives indentation in CSS instead. A heading
+/// missing an anchor id renders as plain unlinked text rather than a dead
+/// link (shouldn't happen once `export_document` forces `heading_anchors`
+/// on for this path, but the AST is defensive about it — see
+/// `docmodel::OutlineItem::anchor_id`).
+fn table_of_contents_html(outline: &[docmodel::OutlineItem]) -> String {
+    if outline.is_empty() {
+        return String::new();
+    }
+    let mut html = String::from("<nav class=\"md-toc\"><div class=\"md-toc-title\">Table of contents</div><ul>");
+    for item in outline {
+        let text = escape_html_text(&item.text);
+        html.push_str(&format!("<li class=\"md-toc-l{}\">", item.level));
+        if item.anchor_id.is_empty() {
+            html.push_str(&text);
+        } else {
+            html.push_str(&format!("<a href=\"#{}\">{}</a>", item.anchor_id, text));
+        }
+        html.push_str("</li>");
+    }
+    html.push_str("</ul></nav>");
+    html
+}
+
+/// Splices `toc` into `html`: right after the full page's
+/// `<body class="markdown-body">` open tag (the exact literal
+/// `render/html/page.go` emits), or prepended before a fragment's
+/// body-only markup (a fragment has no `<body>` to anchor on). Falls back
+/// to prepending for a full page too if that literal isn't found — a
+/// future library version changing the body tag shouldn't silently drop
+/// the TOC.
+fn insert_table_of_contents(html: &str, toc: &str, fragment: bool) -> String {
+    if fragment {
+        return format!("{toc}{html}");
+    }
+    const BODY_OPEN: &str = "<body class=\"markdown-body\">\n";
+    match html.find(BODY_OPEN) {
+        Some(idx) => {
+            let split_at = idx + BODY_OPEN.len();
+            format!("{}{}{}", &html[..split_at], toc, &html[split_at..])
+        }
+        None => format!("{toc}{html}"),
+    }
+}
+
 #[tauri::command]
 pub fn render_document(markdown: String, theme: String, prefs: Option<RenderPrefs>) -> Result<String, String> {
     let overrides = theme_overrides(&theme);
@@ -104,20 +201,37 @@ pub fn render_document(markdown: String, theme: String, prefs: Option<RenderPref
 /// Export sheet (design §10) — same render path as `render_document`, but
 /// with `fragment` controllable ("Self-contained HTML" needs the full
 /// page; "HTML fragment" needs body-only markup so a host page's own
-/// styles apply) and always full fidelity (math/mermaid/raw-HTML follow
-/// the same live preferences the on-screen preview used, via `prefs`, so
-/// an exported file matches what the user was actually looking at).
+/// styles apply), always full fidelity (math/mermaid/raw-HTML follow the
+/// same live preferences the on-screen preview used, via `prefs`, so an
+/// exported file matches what the user was actually looking at), and the
+/// "Options" checklist (`options`, see `ExportOptions`) wired into the
+/// render pipeline: `heading_anchors` maps straight to the library's own
+/// option, `print_theme_light` overrides the theme used for this export
+/// only, `page_numbers` appends print CSS, and `table_of_contents`
+/// splices a generated TOC block into the result.
 #[tauri::command]
 pub fn export_document(
     markdown: String,
     theme: String,
     fragment: bool,
     prefs: Option<RenderPrefs>,
+    options: Option<ExportOptions>,
 ) -> Result<String, String> {
-    let overrides = theme_overrides(&theme);
+    let opts = options.unwrap_or_default();
+    let export_theme = if opts.print_theme_light { "light".to_string() } else { theme };
+    let overrides = theme_overrides(&export_theme);
     let prefs = prefs.unwrap_or_default();
-    let opts = ffi::RenderOptions {
-        theme,
+
+    let mut extra_css = typeface_extra_css(&prefs.prose_typeface);
+    if opts.page_numbers {
+        extra_css = Some(match extra_css {
+            Some(existing) => format!("{existing}\n{PAGE_NUMBER_CSS}"),
+            None => PAGE_NUMBER_CSS.to_string(),
+        });
+    }
+
+    let render_opts = ffi::RenderOptions {
+        theme: export_theme,
         source_map: false,
         code_header: true,
         theme_overrides: overrides,
@@ -125,9 +239,21 @@ pub fn export_document(
         math: prefs.math,
         allow_raw_html: prefs.allow_raw_html,
         fragment,
-        extra_css: typeface_extra_css(&prefs.prose_typeface),
+        extra_css,
+        heading_anchors: opts.heading_anchors || opts.table_of_contents,
     };
-    ffi::render(&markdown, &opts).map_err(|e| e.to_string())
+    let html = ffi::render(&markdown, &render_opts).map_err(|e| e.to_string())?;
+
+    if !opts.table_of_contents {
+        return Ok(html);
+    }
+    let ast = ffi::parse(&markdown).map_err(|e| e.to_string())?;
+    let model = docmodel::analyze(&ast).map_err(|e| e.to_string())?;
+    let toc = table_of_contents_html(&model.outline);
+    if toc.is_empty() {
+        return Ok(html);
+    }
+    Ok(insert_table_of_contents(&html, &toc, fragment))
 }
 
 /// Writes `contents` verbatim to `path` — the export sheet's "Export"
@@ -447,11 +573,110 @@ mod tests {
 
     #[test]
     fn export_document_fragment_omits_html_wrapper() {
-        let full = export_document("# T\n".into(), "light".into(), false, None).unwrap();
-        let fragment = export_document("# T\n".into(), "light".into(), true, None).unwrap();
+        let full = export_document("# T\n".into(), "light".into(), false, None, None).unwrap();
+        let fragment = export_document("# T\n".into(), "light".into(), true, None, None).unwrap();
         assert!(full.contains("<html"), "expected a full page: {full}");
         assert!(!fragment.contains("<html"), "expected body-only markup: {fragment}");
         assert!(fragment.contains("<h1"), "expected the heading to still render: {fragment}");
+    }
+
+    #[test]
+    fn export_document_defaults_match_design_prototype_starting_state() {
+        // No `options` at all must still export exactly like before the
+        // checklist existed: anchors present, light-forced theme, page
+        // numbers appended, no TOC.
+        let html = export_document("# Title\n".into(), "dark".into(), false, None, None).unwrap();
+        assert!(html.contains("id=\"title\""), "expected default heading_anchors:true: {html}");
+        assert!(html.contains("#f7f6f3"), "expected print_theme_light to force light regardless of app theme: {html}");
+        assert!(html.contains("counter(page)"), "expected default page_numbers:true: {html}");
+        assert!(!html.contains("md-toc"), "expected default table_of_contents:false: {html}");
+    }
+
+    #[test]
+    fn export_document_heading_anchors_off_omits_ids() {
+        let opts = ExportOptions { heading_anchors: false, ..Default::default() };
+        let html = export_document("# Title\n".into(), "light".into(), false, None, Some(opts)).unwrap();
+        assert!(!html.contains("id=\"title\""), "expected no anchor id: {html}");
+    }
+
+    #[test]
+    fn export_document_print_theme_light_overrides_dark_app_theme() {
+        let opts = ExportOptions { print_theme_light: true, ..Default::default() };
+        let html = export_document("# T\n".into(), "dark".into(), false, None, Some(opts)).unwrap();
+        assert!(html.contains("#f7f6f3"), "expected light bg override despite dark app theme: {html}");
+        assert!(!html.contains("#131418"), "expected no dark bg override: {html}");
+    }
+
+    #[test]
+    fn export_document_print_theme_light_off_keeps_app_theme() {
+        let opts = ExportOptions { print_theme_light: false, ..Default::default() };
+        let html = export_document("# T\n".into(), "dark".into(), false, None, Some(opts)).unwrap();
+        assert!(html.contains("#131418"), "expected dark bg override to survive: {html}");
+    }
+
+    #[test]
+    fn export_document_page_numbers_off_omits_print_css() {
+        let opts = ExportOptions { page_numbers: false, ..Default::default() };
+        let html = export_document("# T\n".into(), "light".into(), false, None, Some(opts)).unwrap();
+        assert!(!html.contains("counter(page)"), "expected no page-number CSS: {html}");
+    }
+
+    #[test]
+    fn export_document_table_of_contents_links_every_heading() {
+        let markdown = "# Title\n\ntext\n\n## Sub Head\n\nmore\n";
+        let opts = ExportOptions { table_of_contents: true, ..Default::default() };
+        let html = export_document(markdown.into(), "light".into(), false, None, Some(opts)).unwrap();
+        assert!(html.contains("class=\"md-toc\""), "missing TOC block: {html}");
+        assert!(html.contains("<a href=\"#title\">Title</a>"), "missing TOC link to Title: {html}");
+        assert!(html.contains("<a href=\"#sub-head\">Sub Head</a>"), "missing TOC link to Sub Head: {html}");
+        // The TOC must land inside the actual document body, before the
+        // real content, not merely appear somewhere in the string.
+        let body_idx = html.find("<body class=\"markdown-body\">").unwrap();
+        let toc_idx = html.find("md-toc").unwrap();
+        let h1_idx = html.find("<h1").unwrap();
+        assert!(body_idx < toc_idx, "TOC must be inside <body>: {html}");
+        assert!(toc_idx < h1_idx, "TOC must precede the document content: {html}");
+    }
+
+    #[test]
+    fn export_document_table_of_contents_forces_heading_anchors_on() {
+        // Requesting a TOC while explicitly disabling heading anchors
+        // would otherwise generate dead links — table_of_contents wins.
+        let opts = ExportOptions { heading_anchors: false, table_of_contents: true, ..Default::default() };
+        let html = export_document("# Title\n".into(), "light".into(), false, None, Some(opts)).unwrap();
+        assert!(html.contains("id=\"title\""), "expected anchors forced on for TOC: {html}");
+        assert!(html.contains("<a href=\"#title\">Title</a>"), "expected a working TOC link: {html}");
+    }
+
+    #[test]
+    fn export_document_table_of_contents_prepends_for_fragment() {
+        let markdown = "# Title\n";
+        let opts = ExportOptions { table_of_contents: true, ..Default::default() };
+        let html = export_document(markdown.into(), "light".into(), true, None, Some(opts)).unwrap();
+        assert!(!html.contains("<html"), "expected fragment output: {html}");
+        let toc_idx = html.find("md-toc").unwrap();
+        let h1_idx = html.find("<h1").unwrap();
+        assert!(toc_idx < h1_idx, "TOC must precede the fragment's content: {html}");
+    }
+
+    #[test]
+    fn export_document_table_of_contents_skips_when_no_headings() {
+        let opts = ExportOptions { table_of_contents: true, ..Default::default() };
+        let html = export_document("just a paragraph, no headings\n".into(), "light".into(), false, None, Some(opts)).unwrap();
+        assert!(!html.contains("md-toc"), "expected no TOC block for a headingless document: {html}");
+    }
+
+    #[test]
+    fn table_of_contents_html_escapes_heading_text() {
+        let outline = vec![docmodel::OutlineItem {
+            level: 1,
+            text: "<script>&".into(),
+            line: 1,
+            anchor_id: "x".into(),
+        }];
+        let html = table_of_contents_html(&outline);
+        assert!(html.contains("&lt;script&gt;&amp;"), "expected escaped heading text: {html}");
+        assert!(!html.contains("<script>"), "must not emit an unescaped script tag: {html}");
     }
 
     #[test]

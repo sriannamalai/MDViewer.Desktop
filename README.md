@@ -77,9 +77,13 @@ for the current gaps in that pipeline.
   successfully) **but not with an eyeballed screenshot** — a human (or an
   agent with screen-capture tooling) should still visually confirm a real
   Mermaid+KaTeX document before tagging a release.
-- **Export sheet's "Options" checklist is not wired to real toggles yet**
-  (heading anchors / print theme / page numbers / table of contents) —
-  none of the current render pipeline's options map onto them 1:1.
+- **Export sheet's "Options" checklist** (heading anchors / print theme /
+  page numbers / table of contents) is wired into the render pipeline
+  (`src-tauri/src/commands.rs`'s `ExportOptions`). "Page numbers" needs a
+  print engine with CSS Paged Media Level 3 margin-box support (Chromium
+  131+/Safari 18.2+, shipped late 2024) — this app's bundled webviews
+  clear that bar on a current OS, but an older engine just omits the
+  footer rather than erroring.
 - **External links and images inside documents** are now gated by a
   Content-Security-Policy injected into every rendered document (only
   embedded `data:`/`blob:` assets load; no remote requests), and external

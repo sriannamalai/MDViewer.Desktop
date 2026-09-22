@@ -69,6 +69,15 @@ pub struct OutlineItem {
     pub level: u8,
     pub text: String,
     pub line: u32,
+    /// The heading's slug `id` (AST `anchorId`, assigned at parse time —
+    /// independent of whether the `headingAnchors` render option is on).
+    /// Empty if the AST node is missing the field (shouldn't happen for a
+    /// real parse, but the walk is defensive). Used by the export sheet's
+    /// "Table of contents" option (design §10) to link into the rendered
+    /// document; a TOC generated while "Include heading anchors" is
+    /// disabled won't have matching `id` attributes to land on — see
+    /// commands.rs's `export_document`.
+    pub anchor_id: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -108,7 +117,8 @@ fn walk(node: &Value, outline: &mut Vec<OutlineItem>, words: &mut u32) {
             .and_then(Value::as_u64)
             .unwrap_or(0) as u32;
         let text = flatten_text(node);
-        outline.push(OutlineItem { level, text, line });
+        let anchor_id = node.get("anchorId").and_then(Value::as_str).unwrap_or("").to_string();
+        outline.push(OutlineItem { level, text, line, anchor_id });
     }
 
     if kind == "text"
@@ -163,8 +173,8 @@ mod tests {
         assert_eq!(
             model.outline,
             vec![
-                OutlineItem { level: 1, text: "Title".into(), line: 1 },
-                OutlineItem { level: 2, text: "Sub Head".into(), line: 5 },
+                OutlineItem { level: 1, text: "Title".into(), line: 1, anchor_id: "title".into() },
+                OutlineItem { level: 2, text: "Sub Head".into(), line: 5, anchor_id: "sub-head".into() },
             ]
         );
         // Whitespace-split tokens over every `text` node's value, headings
