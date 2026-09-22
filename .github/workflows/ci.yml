@@ -16,11 +16,13 @@ jobs:
       - run: npm ci
       - run: npm run build
 
-  # No `cargo fmt --check` job: the existing codebase predates any
-  # formatting convention/CI and isn't rustfmt-clean as-is (verified
-  # locally — dozens of pre-existing, unrelated diffs). Adding the check
-  # now would fail on day one for code this task didn't touch; a
-  # project-wide `cargo fmt` pass is a reasonable separate follow-up.
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with: {components: rustfmt}
+      - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
 
   # cargo test/clippy run build.rs (links the vendored libmdviewer for the
   # host's own target) and tauri-build (reads tauri.conf.json's

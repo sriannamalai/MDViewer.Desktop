@@ -101,7 +101,11 @@ pub fn analyze(ast_json: &str) -> Result<DocModel, serde_json::Error> {
     }
     let read_minutes = ((words as f64) / 220.0).round().max(1.0) as u32;
 
-    Ok(DocModel { outline, words, read_minutes })
+    Ok(DocModel {
+        outline,
+        words,
+        read_minutes,
+    })
 }
 
 /// Walks one node and its descendants, appending outline entries for
@@ -117,8 +121,17 @@ fn walk(node: &Value, outline: &mut Vec<OutlineItem>, words: &mut u32) {
             .and_then(Value::as_u64)
             .unwrap_or(0) as u32;
         let text = flatten_text(node);
-        let anchor_id = node.get("anchorId").and_then(Value::as_str).unwrap_or("").to_string();
-        outline.push(OutlineItem { level, text, line, anchor_id });
+        let anchor_id = node
+            .get("anchorId")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string();
+        outline.push(OutlineItem {
+            level,
+            text,
+            line,
+            anchor_id,
+        });
     }
 
     if kind == "text"
@@ -173,8 +186,18 @@ mod tests {
         assert_eq!(
             model.outline,
             vec![
-                OutlineItem { level: 1, text: "Title".into(), line: 1, anchor_id: "title".into() },
-                OutlineItem { level: 2, text: "Sub Head".into(), line: 5, anchor_id: "sub-head".into() },
+                OutlineItem {
+                    level: 1,
+                    text: "Title".into(),
+                    line: 1,
+                    anchor_id: "title".into()
+                },
+                OutlineItem {
+                    level: 2,
+                    text: "Sub Head".into(),
+                    line: 5,
+                    anchor_id: "sub-head".into()
+                },
             ]
         );
         // Whitespace-split tokens over every `text` node's value, headings

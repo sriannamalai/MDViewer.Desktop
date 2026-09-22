@@ -64,7 +64,12 @@ pub struct RenderPrefs {
 
 impl Default for RenderPrefs {
     fn default() -> Self {
-        RenderPrefs { mermaid: true, math: true, allow_raw_html: false, prose_typeface: String::new() }
+        RenderPrefs {
+            mermaid: true,
+            math: true,
+            allow_raw_html: false,
+            prose_typeface: String::new(),
+        }
     }
 }
 
@@ -74,7 +79,10 @@ impl Default for RenderPrefs {
 /// that rule's selector specificity.
 fn typeface_extra_css(prose_typeface: &str) -> Option<String> {
     if prose_typeface == "serif" {
-        Some("body.markdown-body{font-family:'Source Serif 4',Georgia,serif !important;}".to_string())
+        Some(
+            "body.markdown-body{font-family:'Source Serif 4',Georgia,serif !important;}"
+                .to_string(),
+        )
     } else {
         None
     }
@@ -114,7 +122,12 @@ pub struct ExportOptions {
 
 impl Default for ExportOptions {
     fn default() -> Self {
-        ExportOptions { heading_anchors: true, print_theme_light: true, page_numbers: true, table_of_contents: false }
+        ExportOptions {
+            heading_anchors: true,
+            print_theme_light: true,
+            page_numbers: true,
+            table_of_contents: false,
+        }
     }
 }
 
@@ -125,7 +138,9 @@ impl Default for ExportOptions {
 const PAGE_NUMBER_CSS: &str = "@media print{@page{margin:0.75in;@bottom-center{content:\"Page \" counter(page) \" of \" counter(pages);font-family:'JetBrains Mono',monospace;font-size:9pt;color:#888;}}}";
 
 fn escape_html_text(s: &str) -> String {
-    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
 }
 
 /// Builds the "Table of contents" block (design §10) from a document's
@@ -141,7 +156,9 @@ fn table_of_contents_html(outline: &[docmodel::OutlineItem]) -> String {
     if outline.is_empty() {
         return String::new();
     }
-    let mut html = String::from("<nav class=\"md-toc\"><div class=\"md-toc-title\">Table of contents</div><ul>");
+    let mut html = String::from(
+        "<nav class=\"md-toc\"><div class=\"md-toc-title\">Table of contents</div><ul>",
+    );
     for item in outline {
         let text = escape_html_text(&item.text);
         html.push_str(&format!("<li class=\"md-toc-l{}\">", item.level));
@@ -178,7 +195,11 @@ fn insert_table_of_contents(html: &str, toc: &str, fragment: bool) -> String {
 }
 
 #[tauri::command]
-pub fn render_document(markdown: String, theme: String, prefs: Option<RenderPrefs>) -> Result<String, String> {
+pub fn render_document(
+    markdown: String,
+    theme: String,
+    prefs: Option<RenderPrefs>,
+) -> Result<String, String> {
     let overrides = theme_overrides(&theme);
     let prefs = prefs.unwrap_or_default();
     // `code_header` is always on: design/README.md §7 specifies code blocks
@@ -218,7 +239,11 @@ pub fn export_document(
     options: Option<ExportOptions>,
 ) -> Result<String, String> {
     let opts = options.unwrap_or_default();
-    let export_theme = if opts.print_theme_light { "light".to_string() } else { theme };
+    let export_theme = if opts.print_theme_light {
+        "light".to_string()
+    } else {
+        theme
+    };
     let overrides = theme_overrides(&export_theme);
     let prefs = prefs.unwrap_or_default();
 
@@ -366,8 +391,16 @@ fn build_tree(path: &Path, depth: u8) -> std::io::Result<TreeNode> {
             }
         }
         let by_name = |a: &std::path::PathBuf, b: &std::path::PathBuf| {
-            let an = a.file_name().unwrap_or_default().to_string_lossy().to_lowercase();
-            let bn = b.file_name().unwrap_or_default().to_string_lossy().to_lowercase();
+            let an = a
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_lowercase();
+            let bn = b
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_lowercase();
             an.cmp(&bn)
         };
         dirs.sort_by(by_name);
@@ -378,7 +411,13 @@ fn build_tree(path: &Path, depth: u8) -> std::io::Result<TreeNode> {
         }
     }
 
-    Ok(TreeNode { name, path: path.to_string_lossy().into_owned(), is_dir, is_markdown, children })
+    Ok(TreeNode {
+        name,
+        path: path.to_string_lossy().into_owned(),
+        is_dir,
+        is_markdown,
+        children,
+    })
 }
 
 #[tauri::command]
@@ -423,7 +462,9 @@ fn is_searchable_file(name: &str) -> bool {
 }
 
 fn collect_searchable_files(dir: &Path, out: &mut Vec<std::path::PathBuf>) {
-    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
     for entry in entries.flatten() {
         let name = entry.file_name().to_string_lossy().into_owned();
         if is_dotfile(&name) {
@@ -438,9 +479,22 @@ fn collect_searchable_files(dir: &Path, out: &mut Vec<std::path::PathBuf>) {
     }
 }
 
-fn build_matcher(query: &str, case_sensitive: bool, whole_word: bool, regex_mode: bool) -> Result<regex::Regex, String> {
-    let pattern = if regex_mode { query.to_string() } else { regex::escape(query) };
-    let pattern = if whole_word { format!(r"\b(?:{pattern})\b") } else { pattern };
+fn build_matcher(
+    query: &str,
+    case_sensitive: bool,
+    whole_word: bool,
+    regex_mode: bool,
+) -> Result<regex::Regex, String> {
+    let pattern = if regex_mode {
+        query.to_string()
+    } else {
+        regex::escape(query)
+    };
+    let pattern = if whole_word {
+        format!(r"\b(?:{pattern})\b")
+    } else {
+        pattern
+    };
     regex::RegexBuilder::new(&pattern)
         .case_insensitive(!case_sensitive)
         .build()
@@ -456,7 +510,11 @@ pub fn search_workspace(
     regex_mode: bool,
 ) -> Result<SearchResult, String> {
     if query.is_empty() {
-        return Ok(SearchResult { matches: Vec::new(), files_matched: 0, truncated: false });
+        return Ok(SearchResult {
+            matches: Vec::new(),
+            files_matched: 0,
+            truncated: false,
+        });
     }
     let matcher = build_matcher(&query, case_sensitive, whole_word, regex_mode)?;
 
@@ -468,10 +526,14 @@ pub fn search_workspace(
     let mut files_matched = 0u32;
     let mut truncated = false;
     'files: for file in files {
-        let Ok(content) = std::fs::read_to_string(&file) else { continue };
+        let Ok(content) = std::fs::read_to_string(&file) else {
+            continue;
+        };
         let mut file_had_match = false;
         for (i, line) in content.lines().enumerate() {
-            let Some(m) = matcher.find(line) else { continue };
+            let Some(m) = matcher.find(line) else {
+                continue;
+            };
             file_had_match = true;
             matches.push(SearchMatch {
                 path: file.to_string_lossy().into_owned(),
@@ -493,7 +555,11 @@ pub fn search_workspace(
         }
     }
 
-    Ok(SearchResult { matches, files_matched, truncated })
+    Ok(SearchResult {
+        matches,
+        files_matched,
+        truncated,
+    })
 }
 
 #[cfg(test)]
@@ -507,14 +573,23 @@ mod tests {
         // overridden *value* actually landed in the output, not just that
         // the call succeeded.
         assert!(html.contains("#131418"), "missing dark bg override: {html}");
-        assert!(html.contains("#1e2126"), "missing dark code-bg override: {html}");
+        assert!(
+            html.contains("#1e2126"),
+            "missing dark code-bg override: {html}"
+        );
     }
 
     #[test]
     fn render_document_light_theme_applies_design_token_overrides() {
         let html = render_document("# T\n".into(), "light".into(), None).unwrap();
-        assert!(html.contains("#f7f6f3"), "missing light bg override: {html}");
-        assert!(html.contains("#f4f2ee"), "missing light code-bg override: {html}");
+        assert!(
+            html.contains("#f7f6f3"),
+            "missing light bg override: {html}"
+        );
+        assert!(
+            html.contains("#f4f2ee"),
+            "missing light code-bg override: {html}"
+        );
     }
 
     #[test]
@@ -522,27 +597,50 @@ mod tests {
         // design/README.md §7: code blocks carry a header row (language +
         // Copy affordance). Rendered by the library since v0.8; this app
         // requests it unconditionally.
-        let html = render_document("```go\nfmt.Println(1)\n```\n".into(), "light".into(), None).unwrap();
-        assert!(html.contains("md-code-header"), "missing code header: {html}");
-        assert!(html.contains("md-code-lang"), "missing language label: {html}");
-        assert!(html.contains("md-code-copy"), "missing Copy affordance: {html}");
+        let html =
+            render_document("```go\nfmt.Println(1)\n```\n".into(), "light".into(), None).unwrap();
+        assert!(
+            html.contains("md-code-header"),
+            "missing code header: {html}"
+        );
+        assert!(
+            html.contains("md-code-lang"),
+            "missing language label: {html}"
+        );
+        assert!(
+            html.contains("md-code-copy"),
+            "missing Copy affordance: {html}"
+        );
     }
 
     #[test]
     fn render_document_disables_mermaid_and_math_via_prefs() {
-        let prefs = RenderPrefs { mermaid: false, math: false, ..Default::default() };
+        let prefs = RenderPrefs {
+            mermaid: false,
+            math: false,
+            ..Default::default()
+        };
         let html = render_document("# T\n\n$x$\n".into(), "light".into(), Some(prefs)).unwrap();
         // With math disabled the library falls back to a plain code shape
         // instead of a KaTeX span — assert the KaTeX runtime itself isn't
         // embedded rather than asserting on inner markup we don't own.
-        assert!(!html.contains("katex.render"), "expected KaTeX to be skipped: {html}");
+        assert!(
+            !html.contains("katex.render"),
+            "expected KaTeX to be skipped: {html}"
+        );
     }
 
     #[test]
     fn render_document_serif_typeface_appends_extra_css() {
-        let prefs = RenderPrefs { prose_typeface: "serif".into(), ..Default::default() };
+        let prefs = RenderPrefs {
+            prose_typeface: "serif".into(),
+            ..Default::default()
+        };
         let html = render_document("# T\n".into(), "light".into(), Some(prefs)).unwrap();
-        assert!(html.contains("Source Serif 4"), "missing serif typeface override: {html}");
+        assert!(
+            html.contains("Source Serif 4"),
+            "missing serif typeface override: {html}"
+        );
     }
 
     /// Visual-verification proxy for the packaged `.app`'s Mermaid/KaTeX
@@ -560,15 +658,27 @@ mod tests {
         let markdown = "# Diagram + math\n\n```mermaid\ngraph TD; A-->B;\n```\n\nInline $x^2$ and:\n\n$$\ny = x^2\n$$\n";
         let html = render_document(markdown.into(), "light".into(), None).unwrap();
 
-        assert!(html.contains("class=\"mermaid\"") || html.contains("graph TD"), "mermaid block missing: {html}");
-        assert!(html.contains("mermaid.initialize"), "mermaid runtime not wired: {html}");
-        assert!(html.contains("katex.render"), "KaTeX runtime not wired: {html}");
+        assert!(
+            html.contains("class=\"mermaid\"") || html.contains("graph TD"),
+            "mermaid block missing: {html}"
+        );
+        assert!(
+            html.contains("mermaid.initialize"),
+            "mermaid runtime not wired: {html}"
+        );
+        assert!(
+            html.contains("katex.render"),
+            "KaTeX runtime not wired: {html}"
+        );
         assert!(html.contains("class=\"math"), "math node missing: {html}");
         // Both engines' inline <script> bundles must appear intact and in
         // document order, not truncated/interleaved by the other's output.
         let mermaid_idx = html.find("mermaid.initialize").unwrap();
         let katex_idx = html.find("katex.render").unwrap();
-        assert!(mermaid_idx < katex_idx, "expected mermaid init before katex render in document order");
+        assert!(
+            mermaid_idx < katex_idx,
+            "expected mermaid init before katex render in document order"
+        );
     }
 
     #[test]
@@ -576,8 +686,14 @@ mod tests {
         let full = export_document("# T\n".into(), "light".into(), false, None, None).unwrap();
         let fragment = export_document("# T\n".into(), "light".into(), true, None, None).unwrap();
         assert!(full.contains("<html"), "expected a full page: {full}");
-        assert!(!fragment.contains("<html"), "expected body-only markup: {fragment}");
-        assert!(fragment.contains("<h1"), "expected the heading to still render: {fragment}");
+        assert!(
+            !fragment.contains("<html"),
+            "expected body-only markup: {fragment}"
+        );
+        assert!(
+            fragment.contains("<h1"),
+            "expected the heading to still render: {fragment}"
+        );
     }
 
     #[test]
@@ -586,84 +702,172 @@ mod tests {
         // checklist existed: anchors present, light-forced theme, page
         // numbers appended, no TOC.
         let html = export_document("# Title\n".into(), "dark".into(), false, None, None).unwrap();
-        assert!(html.contains("id=\"title\""), "expected default heading_anchors:true: {html}");
-        assert!(html.contains("#f7f6f3"), "expected print_theme_light to force light regardless of app theme: {html}");
-        assert!(html.contains("counter(page)"), "expected default page_numbers:true: {html}");
-        assert!(!html.contains("md-toc"), "expected default table_of_contents:false: {html}");
+        assert!(
+            html.contains("id=\"title\""),
+            "expected default heading_anchors:true: {html}"
+        );
+        assert!(
+            html.contains("#f7f6f3"),
+            "expected print_theme_light to force light regardless of app theme: {html}"
+        );
+        assert!(
+            html.contains("counter(page)"),
+            "expected default page_numbers:true: {html}"
+        );
+        assert!(
+            !html.contains("md-toc"),
+            "expected default table_of_contents:false: {html}"
+        );
     }
 
     #[test]
     fn export_document_heading_anchors_off_omits_ids() {
-        let opts = ExportOptions { heading_anchors: false, ..Default::default() };
-        let html = export_document("# Title\n".into(), "light".into(), false, None, Some(opts)).unwrap();
-        assert!(!html.contains("id=\"title\""), "expected no anchor id: {html}");
+        let opts = ExportOptions {
+            heading_anchors: false,
+            ..Default::default()
+        };
+        let html =
+            export_document("# Title\n".into(), "light".into(), false, None, Some(opts)).unwrap();
+        assert!(
+            !html.contains("id=\"title\""),
+            "expected no anchor id: {html}"
+        );
     }
 
     #[test]
     fn export_document_print_theme_light_overrides_dark_app_theme() {
-        let opts = ExportOptions { print_theme_light: true, ..Default::default() };
+        let opts = ExportOptions {
+            print_theme_light: true,
+            ..Default::default()
+        };
         let html = export_document("# T\n".into(), "dark".into(), false, None, Some(opts)).unwrap();
-        assert!(html.contains("#f7f6f3"), "expected light bg override despite dark app theme: {html}");
-        assert!(!html.contains("#131418"), "expected no dark bg override: {html}");
+        assert!(
+            html.contains("#f7f6f3"),
+            "expected light bg override despite dark app theme: {html}"
+        );
+        assert!(
+            !html.contains("#131418"),
+            "expected no dark bg override: {html}"
+        );
     }
 
     #[test]
     fn export_document_print_theme_light_off_keeps_app_theme() {
-        let opts = ExportOptions { print_theme_light: false, ..Default::default() };
+        let opts = ExportOptions {
+            print_theme_light: false,
+            ..Default::default()
+        };
         let html = export_document("# T\n".into(), "dark".into(), false, None, Some(opts)).unwrap();
-        assert!(html.contains("#131418"), "expected dark bg override to survive: {html}");
+        assert!(
+            html.contains("#131418"),
+            "expected dark bg override to survive: {html}"
+        );
     }
 
     #[test]
     fn export_document_page_numbers_off_omits_print_css() {
-        let opts = ExportOptions { page_numbers: false, ..Default::default() };
-        let html = export_document("# T\n".into(), "light".into(), false, None, Some(opts)).unwrap();
-        assert!(!html.contains("counter(page)"), "expected no page-number CSS: {html}");
+        let opts = ExportOptions {
+            page_numbers: false,
+            ..Default::default()
+        };
+        let html =
+            export_document("# T\n".into(), "light".into(), false, None, Some(opts)).unwrap();
+        assert!(
+            !html.contains("counter(page)"),
+            "expected no page-number CSS: {html}"
+        );
     }
 
     #[test]
     fn export_document_table_of_contents_links_every_heading() {
         let markdown = "# Title\n\ntext\n\n## Sub Head\n\nmore\n";
-        let opts = ExportOptions { table_of_contents: true, ..Default::default() };
-        let html = export_document(markdown.into(), "light".into(), false, None, Some(opts)).unwrap();
-        assert!(html.contains("class=\"md-toc\""), "missing TOC block: {html}");
-        assert!(html.contains("<a href=\"#title\">Title</a>"), "missing TOC link to Title: {html}");
-        assert!(html.contains("<a href=\"#sub-head\">Sub Head</a>"), "missing TOC link to Sub Head: {html}");
+        let opts = ExportOptions {
+            table_of_contents: true,
+            ..Default::default()
+        };
+        let html =
+            export_document(markdown.into(), "light".into(), false, None, Some(opts)).unwrap();
+        assert!(
+            html.contains("class=\"md-toc\""),
+            "missing TOC block: {html}"
+        );
+        assert!(
+            html.contains("<a href=\"#title\">Title</a>"),
+            "missing TOC link to Title: {html}"
+        );
+        assert!(
+            html.contains("<a href=\"#sub-head\">Sub Head</a>"),
+            "missing TOC link to Sub Head: {html}"
+        );
         // The TOC must land inside the actual document body, before the
         // real content, not merely appear somewhere in the string.
         let body_idx = html.find("<body class=\"markdown-body\">").unwrap();
         let toc_idx = html.find("md-toc").unwrap();
         let h1_idx = html.find("<h1").unwrap();
         assert!(body_idx < toc_idx, "TOC must be inside <body>: {html}");
-        assert!(toc_idx < h1_idx, "TOC must precede the document content: {html}");
+        assert!(
+            toc_idx < h1_idx,
+            "TOC must precede the document content: {html}"
+        );
     }
 
     #[test]
     fn export_document_table_of_contents_forces_heading_anchors_on() {
         // Requesting a TOC while explicitly disabling heading anchors
         // would otherwise generate dead links — table_of_contents wins.
-        let opts = ExportOptions { heading_anchors: false, table_of_contents: true, ..Default::default() };
-        let html = export_document("# Title\n".into(), "light".into(), false, None, Some(opts)).unwrap();
-        assert!(html.contains("id=\"title\""), "expected anchors forced on for TOC: {html}");
-        assert!(html.contains("<a href=\"#title\">Title</a>"), "expected a working TOC link: {html}");
+        let opts = ExportOptions {
+            heading_anchors: false,
+            table_of_contents: true,
+            ..Default::default()
+        };
+        let html =
+            export_document("# Title\n".into(), "light".into(), false, None, Some(opts)).unwrap();
+        assert!(
+            html.contains("id=\"title\""),
+            "expected anchors forced on for TOC: {html}"
+        );
+        assert!(
+            html.contains("<a href=\"#title\">Title</a>"),
+            "expected a working TOC link: {html}"
+        );
     }
 
     #[test]
     fn export_document_table_of_contents_prepends_for_fragment() {
         let markdown = "# Title\n";
-        let opts = ExportOptions { table_of_contents: true, ..Default::default() };
-        let html = export_document(markdown.into(), "light".into(), true, None, Some(opts)).unwrap();
+        let opts = ExportOptions {
+            table_of_contents: true,
+            ..Default::default()
+        };
+        let html =
+            export_document(markdown.into(), "light".into(), true, None, Some(opts)).unwrap();
         assert!(!html.contains("<html"), "expected fragment output: {html}");
         let toc_idx = html.find("md-toc").unwrap();
         let h1_idx = html.find("<h1").unwrap();
-        assert!(toc_idx < h1_idx, "TOC must precede the fragment's content: {html}");
+        assert!(
+            toc_idx < h1_idx,
+            "TOC must precede the fragment's content: {html}"
+        );
     }
 
     #[test]
     fn export_document_table_of_contents_skips_when_no_headings() {
-        let opts = ExportOptions { table_of_contents: true, ..Default::default() };
-        let html = export_document("just a paragraph, no headings\n".into(), "light".into(), false, None, Some(opts)).unwrap();
-        assert!(!html.contains("md-toc"), "expected no TOC block for a headingless document: {html}");
+        let opts = ExportOptions {
+            table_of_contents: true,
+            ..Default::default()
+        };
+        let html = export_document(
+            "just a paragraph, no headings\n".into(),
+            "light".into(),
+            false,
+            None,
+            Some(opts),
+        )
+        .unwrap();
+        assert!(
+            !html.contains("md-toc"),
+            "expected no TOC block for a headingless document: {html}"
+        );
     }
 
     #[test]
@@ -675,15 +879,24 @@ mod tests {
             anchor_id: "x".into(),
         }];
         let html = table_of_contents_html(&outline);
-        assert!(html.contains("&lt;script&gt;&amp;"), "expected escaped heading text: {html}");
-        assert!(!html.contains("<script>"), "must not emit an unescaped script tag: {html}");
+        assert!(
+            html.contains("&lt;script&gt;&amp;"),
+            "expected escaped heading text: {html}"
+        );
+        assert!(
+            !html.contains("<script>"),
+            "must not emit an unescaped script tag: {html}"
+        );
     }
 
     #[test]
     fn write_export_file_round_trips_contents() {
         let dir = std::env::temp_dir().join(format!(
             "mdviewer-commands-export-test-{}",
-            std::time::SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+            std::time::SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
         ));
         std::fs::create_dir_all(&dir).unwrap();
         let file = dir.join("out.html");
@@ -697,19 +910,33 @@ mod tests {
     fn search_workspace_finds_matches_across_files_case_insensitively() {
         let dir = std::env::temp_dir().join(format!(
             "mdviewer-commands-search-test-{}",
-            std::time::SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+            std::time::SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
         ));
         std::fs::create_dir_all(dir.join("sub")).unwrap();
         std::fs::write(dir.join("a.md"), "first line\nsecond RESOLVER line\n").unwrap();
         std::fs::write(dir.join("sub").join("b.md"), "a resolver reference\n").unwrap();
         std::fs::write(dir.join("skip.png"), "resolver").unwrap();
 
-        let result = search_workspace(dir.to_string_lossy().into_owned(), "resolver".into(), false, false, false).unwrap();
+        let result = search_workspace(
+            dir.to_string_lossy().into_owned(),
+            "resolver".into(),
+            false,
+            false,
+            false,
+        )
+        .unwrap();
 
         assert_eq!(result.files_matched, 2);
         assert_eq!(result.matches.len(), 2);
         assert!(!result.truncated);
-        let a_match = result.matches.iter().find(|m| m.path.ends_with("a.md")).unwrap();
+        let a_match = result
+            .matches
+            .iter()
+            .find(|m| m.path.ends_with("a.md"))
+            .unwrap();
         assert_eq!(a_match.line, 2);
     }
 
@@ -717,12 +944,22 @@ mod tests {
     fn search_workspace_case_sensitive_excludes_different_case() {
         let dir = std::env::temp_dir().join(format!(
             "mdviewer-commands-search-cs-test-{}",
-            std::time::SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+            std::time::SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
         ));
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("a.md"), "Resolver\n").unwrap();
 
-        let result = search_workspace(dir.to_string_lossy().into_owned(), "resolver".into(), true, false, false).unwrap();
+        let result = search_workspace(
+            dir.to_string_lossy().into_owned(),
+            "resolver".into(),
+            true,
+            false,
+            false,
+        )
+        .unwrap();
 
         assert_eq!(result.matches.len(), 0);
     }
@@ -731,14 +968,29 @@ mod tests {
     fn search_workspace_whole_word_excludes_substring_matches() {
         let dir = std::env::temp_dir().join(format!(
             "mdviewer-commands-search-ww-test-{}",
-            std::time::SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+            std::time::SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
         ));
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("a.md"), "prerender rendering render\n").unwrap();
 
-        let result = search_workspace(dir.to_string_lossy().into_owned(), "render".into(), false, true, false).unwrap();
+        let result = search_workspace(
+            dir.to_string_lossy().into_owned(),
+            "render".into(),
+            false,
+            true,
+            false,
+        )
+        .unwrap();
 
-        assert_eq!(result.matches.len(), 1, "expected only the standalone word to match: {:?}", result.matches);
+        assert_eq!(
+            result.matches.len(),
+            1,
+            "expected only the standalone word to match: {:?}",
+            result.matches
+        );
     }
 
     #[test]
@@ -800,7 +1052,11 @@ mod tests {
 
         let beta = tree.children.iter().find(|c| c.name == "beta.md").unwrap();
         assert!(beta.is_markdown);
-        let gamma = tree.children.iter().find(|c| c.name == "gamma.txt").unwrap();
+        let gamma = tree
+            .children
+            .iter()
+            .find(|c| c.name == "gamma.txt")
+            .unwrap();
         assert!(!gamma.is_markdown);
     }
 
@@ -835,6 +1091,9 @@ mod tests {
         let path_str = missing.to_string_lossy().into_owned();
         let err = read_dir_tree(path_str.clone(), 6).unwrap_err();
 
-        assert!(err.contains(&path_str), "error should name the bad path: {err}");
+        assert!(
+            err.contains(&path_str),
+            "error should name the bad path: {err}"
+        );
     }
 }

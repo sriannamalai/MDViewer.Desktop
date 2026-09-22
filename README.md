@@ -57,8 +57,9 @@ separately installed library required.
 
 ## CI & releases
 
-`.github/workflows/ci.yml` builds the frontend and runs `cargo test`/
-`cargo clippy` on macOS/Linux/Windows for every push and pull request.
+`.github/workflows/ci.yml` builds the frontend, checks `cargo fmt`, and
+runs `cargo test`/`cargo clippy` on macOS/Linux/Windows for every push
+and pull request.
 `.github/workflows/release.yml` builds and packages the app for macOS
 (arm64 + x86_64), Linux (amd64 + arm64) and Windows (amd64 + arm64) on
 every published GitHub release, uploading a checksummed zip per target

@@ -49,7 +49,10 @@ mod tests {
     /// A fresh, never-before-used scratch directory per test (no shared
     /// fixture, no cleanup dependency between tests).
     fn scratch_dir(tag: &str) -> std::path::PathBuf {
-        let nanos = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
         std::env::temp_dir().join(format!("mdviewer-uistate-test-{tag}-{nanos}"))
     }
 

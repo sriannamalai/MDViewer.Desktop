@@ -200,6 +200,13 @@ Chronologically (see `git log --oneline`):
     Verified with `otool -l` on a `cargo build --release` binary: the local
     vendor path is gone, the Frameworks rpath remains, and dev/test builds
     are unaffected (still resolve straight from the vendor dir).
+20. **Project-wide `cargo fmt` pass**, plus a new `fmt` CI job
+    (`.github/workflows/ci.yml`) running `cargo fmt --manifest-path
+    src-tauri/Cargo.toml --check`. The pass was formatting-only (default
+    rustfmt config, no `rustfmt.toml` needed — the default width/style
+    didn't fight the existing manual formatting choices badly enough to
+    warrant one); `cargo build`/`cargo test`/`cargo clippy` and the
+    frontend build were all re-verified green afterward.
 ## Known limitations (v1, per README)
 - **Mermaid/KaTeX combined-render verification is structural, not a
   pixel-level screenshot pass.** A new Rust test
@@ -219,10 +226,6 @@ Chronologically (see `git log --oneline`):
   webview just omits the footer rather than erroring. PDF export still
   goes through the OS print dialog rather than programmatic PDF
   generation (no headless-rendering dependency pulled in for v1).
-- **No `cargo fmt --check` in CI.** The pre-existing codebase isn't
-  rustfmt-clean (verified locally), so adding the check now would fail on
-  unrelated code; a project-wide `cargo fmt` pass is a reasonable
-  separate follow-up before turning this on.
 
 ## Next items (proposed, not yet planned in detail)
 1. A real pixel-level Mermaid/KaTeX visual pass on the packaged `.app`
@@ -230,8 +233,7 @@ Chronologically (see `git log --oneline`):
    `windows-arm64` release job (unverified by an actual tagged release
    run as of this pass — the Rust/MSVC toolchain assumption should hold,
    but treat the first real `windows-arm64` release build as a smoke test).
-2. Project-wide `cargo fmt` pass, then turn on a `fmt` CI job.
-3. Track the core library toward native-render-tree adoption for
+2. Track the core library toward native-render-tree adoption for
    Desktop — **deliberately deprioritized**; see "Architectural
    specialization" above for why this isn't expected to happen absent a
    design change away from the current HTML/webview spec.

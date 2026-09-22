@@ -3,13 +3,15 @@
 //! immediately released with mdv_free. All functions are thread-safe
 //! (library guarantee).
 use std::collections::BTreeMap;
-use std::ffi::{c_char, c_int, CStr, CString};
+use std::ffi::{CStr, CString, c_char, c_int};
 use std::fmt;
 
 #[derive(Debug)]
 pub struct FfiError(pub String);
 impl fmt::Display for FfiError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { self.0.fmt(f) }
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
 }
 impl std::error::Error for FfiError {}
 
@@ -106,25 +108,43 @@ impl RenderOptions {
 }
 
 unsafe extern "C" {
-    fn mdv_render(md: *const c_char, md_len: usize, opts: *const c_char,
-        out: *mut *mut c_char, out_len: *mut usize, err: *mut *mut c_char) -> c_int;
-    fn mdv_parse(md: *const c_char, md_len: usize, opts: *const c_char,
-        out: *mut *mut c_char, out_len: *mut usize, err: *mut *mut c_char) -> c_int;
-    fn mdv_asset(name: *const c_char,
-        out: *mut *mut c_char, out_len: *mut usize, err: *mut *mut c_char) -> c_int;
+    fn mdv_render(
+        md: *const c_char,
+        md_len: usize,
+        opts: *const c_char,
+        out: *mut *mut c_char,
+        out_len: *mut usize,
+        err: *mut *mut c_char,
+    ) -> c_int;
+    fn mdv_parse(
+        md: *const c_char,
+        md_len: usize,
+        opts: *const c_char,
+        out: *mut *mut c_char,
+        out_len: *mut usize,
+        err: *mut *mut c_char,
+    ) -> c_int;
+    fn mdv_asset(
+        name: *const c_char,
+        out: *mut *mut c_char,
+        out_len: *mut usize,
+        err: *mut *mut c_char,
+    ) -> c_int;
     fn mdv_free(p: *mut c_char);
     fn mdv_version() -> *const c_char;
 }
 
 pub fn version() -> String {
-    unsafe { CStr::from_ptr(mdv_version()) }.to_string_lossy().into_owned()
+    unsafe { CStr::from_ptr(mdv_version()) }
+        .to_string_lossy()
+        .into_owned()
 }
 
 /// Runs one out-parameter FFI call and marshals the result. `f` receives
 /// (out, out_len, err) pointers and returns the status code.
-fn call(f: impl FnOnce(*mut *mut c_char, *mut usize, *mut *mut c_char) -> c_int)
-    -> Result<Vec<u8>, FfiError>
-{
+fn call(
+    f: impl FnOnce(*mut *mut c_char, *mut usize, *mut *mut c_char) -> c_int,
+) -> Result<Vec<u8>, FfiError> {
     let mut out: *mut c_char = std::ptr::null_mut();
     let mut out_len: usize = 0;
     let mut err: *mut c_char = std::ptr::null_mut();
@@ -134,7 +154,9 @@ fn call(f: impl FnOnce(*mut *mut c_char, *mut usize, *mut *mut c_char) -> c_int)
         let msg = if err.is_null() {
             "unknown FFI error".to_string()
         } else {
-            let m = unsafe { CStr::from_ptr(err) }.to_string_lossy().into_owned();
+            let m = unsafe { CStr::from_ptr(err) }
+                .to_string_lossy()
+                .into_owned();
             unsafe { mdv_free(err) };
             m
         };
@@ -153,14 +175,28 @@ fn call(f: impl FnOnce(*mut *mut c_char, *mut usize, *mut *mut c_char) -> c_int)
 pub fn render(md: &str, opts: &RenderOptions) -> Result<String, FfiError> {
     let opts_c = CString::new(opts.to_json()).map_err(|e| FfiError(e.to_string()))?;
     let bytes = call(|out, len, err| unsafe {
-        mdv_render(md.as_ptr() as *const c_char, md.len(), opts_c.as_ptr(), out, len, err)
+        mdv_render(
+            md.as_ptr() as *const c_char,
+            md.len(),
+            opts_c.as_ptr(),
+            out,
+            len,
+            err,
+        )
     })?;
     String::from_utf8(bytes).map_err(|e| FfiError(e.to_string()))
 }
 
 pub fn parse(md: &str) -> Result<String, FfiError> {
     let bytes = call(|out, len, err| unsafe {
-        mdv_parse(md.as_ptr() as *const c_char, md.len(), std::ptr::null(), out, len, err)
+        mdv_parse(
+            md.as_ptr() as *const c_char,
+            md.len(),
+            std::ptr::null(),
+            out,
+            len,
+            err,
+        )
     })?;
     String::from_utf8(bytes).map_err(|e| FfiError(e.to_string()))
 }
@@ -202,18 +238,35 @@ mod tests {
     fn render_unknown_option_would_error() {
         // Guards the strict-JSON contract: our serializer must not emit
         // unknown fields. Serialize and assert only documented keys.
-        let opts = RenderOptions { theme: "light".into(), source_map: true,
+        let opts = RenderOptions {
+            theme: "light".into(),
+            source_map: true,
             code_header: true,
             theme_overrides: [("--md-bg".to_string(), "#fff".to_string())].into(),
-            ..Default::default() };
+            ..Default::default()
+        };
         let json = opts.to_json();
-        for key in ["\"theme\"", "\"sourceMap\"", "\"codeHeader\"", "\"themeOverrides\""] {
+        for key in [
+            "\"theme\"",
+            "\"sourceMap\"",
+            "\"codeHeader\"",
+            "\"themeOverrides\"",
+        ] {
             assert!(json.contains(key), "{json}");
         }
         assert!(!json.contains("\"fragment\""), "must omit defaults: {json}");
-        assert!(!json.contains("\"mermaid\""), "must omit library-default mermaid:true: {json}");
-        assert!(!json.contains("\"math\""), "must omit library-default math:true: {json}");
-        assert!(!json.contains("\"allowRawHTML\""), "must omit library-default allowRawHTML:false: {json}");
+        assert!(
+            !json.contains("\"mermaid\""),
+            "must omit library-default mermaid:true: {json}"
+        );
+        assert!(
+            !json.contains("\"math\""),
+            "must omit library-default math:true: {json}"
+        );
+        assert!(
+            !json.contains("\"allowRawHTML\""),
+            "must omit library-default allowRawHTML:false: {json}"
+        );
     }
 
     #[test]
@@ -236,14 +289,20 @@ mod tests {
         // Pins the empty-success behavior: exercises the null-guard region
         // in `call()` when the library may return a zero-length buffer.
         let html = render("", &RenderOptions::default()).unwrap();
-        assert!(!html.is_empty(), "expected a non-empty full page for empty input");
+        assert!(
+            !html.is_empty(),
+            "expected a non-empty full page for empty input"
+        );
         assert!(html.contains("<html"), "expected full page: {html}");
     }
 
     #[test]
     fn render_error_path() {
         // Invalid theme name errors cleanly (no panic/crash across FFI).
-        let opts = RenderOptions { theme: "neon".into(), ..Default::default() };
+        let opts = RenderOptions {
+            theme: "neon".into(),
+            ..Default::default()
+        };
         let e = render("# x\n", &opts).unwrap_err();
         assert!(!e.0.is_empty());
     }
@@ -251,15 +310,24 @@ mod tests {
     #[test]
     fn heading_anchors_default_true_omitted_from_json() {
         let json = RenderOptions::default().to_json();
-        assert!(!json.contains("headingAnchors"), "must omit library-default headingAnchors:true: {json}");
+        assert!(
+            !json.contains("headingAnchors"),
+            "must omit library-default headingAnchors:true: {json}"
+        );
     }
 
     #[test]
     fn heading_anchors_disabled_omits_id_attributes() {
-        let opts = RenderOptions { heading_anchors: false, ..Default::default() };
+        let opts = RenderOptions {
+            heading_anchors: false,
+            ..Default::default()
+        };
         let json = opts.to_json();
         assert!(json.contains("\"headingAnchors\":false"), "{json}");
         let html = render("# Title\n", &opts).unwrap();
-        assert!(!html.contains("id=\"title\""), "expected no anchor id: {html}");
+        assert!(
+            !html.contains("id=\"title\""),
+            "expected no anchor id: {html}"
+        );
     }
 }
